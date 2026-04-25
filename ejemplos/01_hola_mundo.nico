@@ -1,0 +1,16 @@
+// Ejemplo 01: Estructura mínima, tipos básicos y entrada/salida
+PROGRAMA HolaMundo
+    VARIABLE TEXTO $saludo = "Bienvenido a Nico v1.0"
+    VARIABLE ENTERA $version = 1
+    VARIABLE DECIMAL $pi = 3.141592
+    VARIABLE TEXTO $dummy = ""  //Declarar como texto para utilizar en LEER
+BLOQUE PRINCIPAL
+    ESCRIBIR("$saludo") SALTO
+    ESCRIBIR("Versión: ") 
+    ESCRIBIR("$version") SALTO
+    ESCRIBIR("Valor de PI: ") 
+    ESCRIBIR("$pi") SALTO
+    ESCRIBIR("Presiona ENTER para continuar...") SALTO
+    LEER($dummy)
+FIN PRINCIPAL
+FINAL

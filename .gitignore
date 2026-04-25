@@ -1,0 +1,31 @@
+# Binarios y objetos
+nico
+*.o
+*.exe
+*.out
+*.so
+*.a
+*.dll
+
+# Archivos temporales y logs
+*.log
+*.txt
+!README.md
+!LICENSE
+test_*.c
+test_*.nico
+compile_errors.txt
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Compiladores/Build
+build/
+dist/

@@ -1,0 +1,38 @@
+PROGRAMA EjemploTextoEstilos
+
+BLOQUE PRINCIPAL
+    ESCRIBIR("=== Demo de Estilos de Texto en Nico v1.0 ===") SALTO SALTO
+    
+    //Negrita
+    TEXTONEGRITA
+    ESCRIBIR("Texto en NEGRITA") SALTO
+    RESETTEXTO
+    
+    //Cursiva
+    TEXTOCURSIVA
+    ESCRIBIR("Texto en CURSIVA") SALTO
+    RESETTEXTO
+    
+    //Subrayado
+    TEXTOSUBRAYADO
+    ESCRIBIR("Texto SUBRAYADO") SALTO
+    RESETTEXTO
+    
+    //Colores (compatibles con terminales ANSI)
+    COLORTEXTO(verde)
+    COLORFONDO(negro)
+    ESCRIBIR("Texto VERDE sobre fondo NEGRO") SALTO
+    RESETCOLOR
+    
+    // Combinación: Negrita + Color
+    TEXTONEGRITA
+    COLORTEXTO(amarillo)
+    ESCRIBIR("NEGRITA + AMARILLO (combinado)") SALTO
+    RESETCOLOR
+    RESETTEXTO
+    
+    ESCRIBIR("Los estilos se aplican hasta que se usa RESETTEXTO o RESETCOLOR.") SALTO
+    ESCRIBIR("Recomendado: siempre cerrar bloques de estilo para evitar efectos residuales.") SALTO
+
+FIN PRINCIPAL
+FINAL
