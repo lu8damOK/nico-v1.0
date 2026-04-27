@@ -93,7 +93,10 @@ static int cmd_para(const char *linea, CtxBloque *ctx, int linea_actual);
 static int cmd_realizar(const char *linea, CtxBloque *ctx, int linea_actual);
 static int cmd_mientras(const char *linea, CtxBloque *ctx, int linea_actual);
 static int cmd_corte(const char *linea, CtxBloque *ctx, int linea_actual);
-
+static int cmd_programa(const char *linea, CtxBloque *ctx, int linea_actual);
+static int cmd_bloque_principal(const char *linea, CtxBloque *ctx, int linea_actual);
+static int cmd_fin_principal(const char *linea, CtxBloque *ctx, int linea_actual);
+static int cmd_final(const char *linea, CtxBloque *ctx, int linea_actual);
 
 static const CmdEntry dispatch_table[] = {
     { "RESETTEXTO",          cmd_resettexto          },
@@ -180,6 +183,10 @@ static const CmdEntry dispatch_table[] = {
     { "PARA",              cmd_para              },
     { "SALTAR A",          cmd_saltar_a          },
     { "CORTE",             cmd_corte             },
+    { "BLOQUE PRINCIPAL",    cmd_bloque_principal    },
+    { "FIN PRINCIPAL",       cmd_fin_principal       },
+    { "PROGRAMA",            cmd_programa            },
+    { "FINAL",               cmd_final               },
     { NULL, NULL }
 };
 
@@ -408,6 +415,7 @@ int validar_estructura_programa(char *nombre_programa) {
         if (comienza_con(linea, "FIN PRINCIPAL")) {
             fin_principal_encontrado_local = 1;
         }
+        
         if (comienza_con(linea, "FINAL")) {
             fin_encontrado = 1;
             break;
@@ -1656,6 +1664,58 @@ static int cmd_corte(const char *linea, CtxBloque *ctx, int linea_actual) {
     return 0;
 }
 
+static int cmd_programa(const char *linea, CtxBloque *ctx, int linea_actual) {
+    (void)linea; (void)linea_actual;
+    ctx->inicio_encontrado = 1;
+    ctx->linea_num++;
+    return 0;
+}
+
+static int cmd_bloque_principal(const char *linea, CtxBloque *ctx, int linea_actual) {
+    (void)linea;
+    if (ctx->en_bloque_principal) {
+        fprintf(stderr, "Error línea %d: Ya hay un BLOQUE PRINCIPAL abierto.\n", linea_actual);
+        return -1;
+    }
+    ctx->en_bloque_principal = 1;
+    ctx->fase_declaraciones = 0;
+
+    int inicio_main = ctx->linea_num + 1;
+    int fin_main = -1;
+    for (int v = inicio_main; v < num_lineas_programa; v++) {
+        char lb[MAX_LINEA];
+        strncpy(lb, lineas_programa[v], MAX_LINEA-1); lb[MAX_LINEA-1]='\0';
+        limpiar_string(lb); remover_comentario(lb);
+        if (comienza_con(lb, "FIN PRINCIPAL")) { fin_main = v; break; }
+    }
+    if (fin_main != -1) validar_estructura_bloques(inicio_main, fin_main);
+
+    ctx->linea_num++;
+    return 0;
+}
+
+static int cmd_fin_principal(const char *linea, CtxBloque *ctx, int linea_actual) {
+    (void)linea;
+    if (!ctx->en_bloque_principal) {
+        fprintf(stderr, "Error línea %d: FIN PRINCIPAL sin BLOQUE PRINCIPAL.\n", linea_actual);
+        return -1;
+    }
+    ctx->en_bloque_principal = 0;
+    fin_principal_encontrado = 1;
+    ctx->linea_num++;
+    return 0;
+}
+
+static int cmd_final(const char *linea, CtxBloque *ctx, int linea_actual) {
+    (void)linea; (void)linea_actual;
+    if (!fin_principal_encontrado) {
+        fprintf(stderr, "Error: El programa no tiene FIN PRINCIPAL antes de FINAL.\n");
+        return -1;
+    }
+    ctx->linea_num = num_lineas_programa;
+    return 0;
+}
+
 static int dispatch_command(const char *linea, CtxBloque *ctx, int linea_actual) {
     const char *ptr = linea;
     while (*ptr == ' ' || *ptr == '\t') ptr++;
@@ -1684,72 +1744,7 @@ int ejecutar_bloque(CtxBloque *ctx) {
             ctx->linea_num++;
             continue;
         }
-        
-        if (!ctx->inicio_encontrado) {
-            if (comienza_con(linea, "PROGRAMA")) {
-                ctx->inicio_encontrado = 1;
-            } else {
-                fprintf(stderr, "Error línea %d.\n", linea_actual);
-                return -1;
-            }
-            ctx->linea_num++;
-            continue;
-        }
-        
-        if (comienza_con(linea, "FINAL")) {
-            if (!fin_principal_encontrado) {
-                fprintf(stderr, "Error: El programa no tiene FIN PRINCIPAL antes de FINAL.\n");
-                return -1;
-            }
-            nico_gpio_cleanup();
-            cerrar_todos_los_archivos();
-            return 0;
-        }
-        
-        if (comienza_con(linea, "BLOQUE PRINCIPAL")) {
-            if (ctx->en_bloque_principal) {
-                fprintf(stderr, "Error línea %d: Ya hay un BLOQUE PRINCIPAL abierto.\n", linea_actual);
-                return -1;
-            }
-            ctx->en_bloque_principal = 1;
-            ctx->fase_declaraciones = 0;
-        
-            {
-                int inicio_main = ctx->linea_num + 1;
-                int fin_main = -1;
-
-                for (int v = inicio_main; v < num_lineas_programa; v++) {
-                    char lb[MAX_LINEA];
-                    strncpy(lb, lineas_programa[v], MAX_LINEA-1);
-                    lb[MAX_LINEA-1] = '\0';
-                    limpiar_string(lb);
-                    remover_comentario(lb);
-                    if (comienza_con(lb, "FIN PRINCIPAL")) {
-                        fin_main = v;
-                        break;
-                    }
-                }
-
-                if (fin_main != -1) {
-                    validar_estructura_bloques(inicio_main, fin_main);
-                }
-            }
-
-            ctx->linea_num++;
-            continue;
-        }
-        
-        if (comienza_con(linea, "FIN PRINCIPAL")) {
-            if (!ctx->en_bloque_principal) {
-                fprintf(stderr, "Error línea %d: FIN PRINCIPAL sin BLOQUE PRINCIPAL.\n", linea_actual);
-                return -1;
-            }
-            ctx->en_bloque_principal = 0;
-            fin_principal_encontrado = 1;
-            ctx->linea_num++;
-            continue;
-        }
-                
+                        
         if (*linea == '$' && strchr(linea, '=') != NULL) {
             if (!comienza_con(linea, "CALCULAR EN") && 
                 !comienza_con(linea, "RESULTADO EN") && 
