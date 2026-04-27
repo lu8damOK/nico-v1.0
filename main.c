@@ -87,20 +87,6 @@ static int cmd_matriz_entera_sin(const char *linea, CtxBloque *ctx, int linea_ac
 static int cmd_matriz_decimal_sin(const char *linea, CtxBloque *ctx, int linea_actual);
 static int cmd_matriz_caracter_sin(const char *linea, CtxBloque *ctx, int linea_actual);
 static int cmd_var_archivo(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_cursor_pos(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_escribir_archivo(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_leer_archivo(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_leer_linea(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_abrir_archivo(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_cerrar_archivo(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_leer_std(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_leer_hasta(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_leer_caracter(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_esperar(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_sistema(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_configurar_pin(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_estado_pin(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_leer_pin(const char *linea, CtxBloque *ctx, int linea_actual);
 
 static const CmdEntry dispatch_table[] = {
     { "RESETTEXTO",          cmd_resettexto          },
@@ -180,21 +166,6 @@ static const CmdEntry dispatch_table[] = {
     { "DECLARAR MATRIZ CARACTER",    cmd_matriz_caracter      },
     { "VARIABLE ARCHIVO",            cmd_var_archivo          },
     { "DECLARAR VARIABLE ARCHIVO",   cmd_var_archivo          },
-    { "ESCRIBIRARCHIVO",     cmd_escribir_archivo      },
-    { "LEERARCHIVO",         cmd_leer_archivo          },
-    { "LEERLINEA",           cmd_leer_linea            },
-    { "ABRIRARCHIVO",        cmd_abrir_archivo         },
-    { "CERRARARCHIVO",       cmd_cerrar_archivo        },
-    { "LEERHASTA",           cmd_leer_hasta            },
-    { "LEERCARACTER",        cmd_leer_caracter         },
-    { "LEER",                cmd_leer_std              },
-    { "ESPERAR",             cmd_esperar               },
-    { "SISTEMA",             cmd_sistema               },
-    { "CURSOR",              cmd_cursor_pos            },
-    { "POSICIONAR",          cmd_cursor_pos            },
-    { "CONFIGURARPIN",     cmd_configurar_pin      },
-    { "ESTADOPIN",         cmd_estado_pin          },
-    { "LEERPIN",           cmd_leer_pin            },
     { NULL, NULL }
 };
 
@@ -773,16 +744,21 @@ static int cmd_limpiarpantalla(const char *linea, CtxBloque *ctx, int linea_actu
 }
 
 static int cmd_escribir(const char *linea, CtxBloque *ctx, int linea_actual) {
-    (void)linea_actual;
-    const char *ptr = linea;
-    if (comienza_con(ptr, "ESCRIBIR")) ptr += 8;
-    else if (comienza_con(ptr, "MOSTRAR")) ptr += 7;
-    while (*ptr == ' ' || *ptr == '\t') ptr++;
+    const char *start = strchr(linea, '(');
+    const char *end = strrchr(linea, ')');
+    if (!start || !end || end <= start) {
+        fprintf(stderr, "Error línea %d: ESCRIBIR requiere argumento entre paréntesis.\n", linea_actual);
+        ctx->error_fatal = 1; return -1;
+    }
+    start++; 
+    char arg[MAX_LINEA];
+    size_t len = end - start;
+    if (len >= MAX_LINEA) len = MAX_LINEA - 1;
+    strncpy(arg, start, len);
+    arg[len] = '\0';
     
-    procesar_escribir(ptr);
-    fflush(stdout);
-    ctx->linea_num++;
-    return 0;
+    procesar_escribir(arg);
+    ctx->linea_num++; return 0;
 }
 
 static int cmd_colortexto(const char *linea, CtxBloque *ctx, int linea_actual) {
@@ -1403,48 +1379,6 @@ static int cmd_var_archivo(const char *linea, CtxBloque *ctx, int linea_actual) 
     ctx->linea_num++; return 0;
 }
 
-static int cmd_cursor_pos(const char *linea, CtxBloque *ctx, int linea_actual) {
-    (void)linea_actual;
-    const char *ptr = strchr(linea, '(');
-    if (ptr) {
-        char buffer[MAX_LINEA]; strncpy(buffer, ptr+1, MAX_LINEA-1); buffer[MAX_LINEA-1]='\0';
-        char *fin = strchr(buffer, ')'); if(fin) *fin='\0';
-        char *coma = strchr(buffer, ',');
-        if(coma) { *coma='\0'; int f=atoi(buffer), c=atoi(coma+1); if(f>0 && c>0) nico_posicionar_cursor(f,c); }
-    }
-    ctx->linea_num++; return 0;
-}
-static int cmd_escribir_archivo(const char *l, CtxBloque *c, int la) { (void)la; procesar_escribirarchivo(l+15); c->linea_num++; return 0; }
-static int cmd_leer_archivo(const char *l, CtxBloque *c, int la) { (void)la; procesar_leerarchivo(l+11); c->linea_num++; return 0; }
-static int cmd_leer_linea(const char *l, CtxBloque *c, int la) { (void)la; procesar_leerlinea(l+9); c->linea_num++; return 0; }
-static int cmd_abrir_archivo(const char *l, CtxBloque *c, int la) { (void)la; procesar_abrirarchivo(l+13); c->linea_num++; return 0; }
-static int cmd_cerrar_archivo(const char *l, CtxBloque *c, int la) { (void)la; procesar_cerrararchivo(l+13); c->linea_num++; return 0; }
-
-static int cmd_leer_std(const char *l, CtxBloque *c, int la) {
-    (void)la; 
-    const char *p = l+4; while(*p==' '||*p=='\t') p++;
-    procesar_leer(p); c->linea_num++; return 0;
-}
-static int cmd_leer_hasta(const char *l, CtxBloque *c, int la) {
-    (void)la; 
-    const char *ap = strchr(l, '('); if(ap) procesar_leerhasta(ap); c->linea_num++; return 0;
-}
-static int cmd_leer_caracter(const char *l, CtxBloque *c, int la) { (void)la; procesar_leercaracter(l+14); c->linea_num++; return 0; }
-
-static int cmd_esperar(const char *l, CtxBloque *c, int la) {
-    const char *p = l+7; while(*p==' '||*p=='\t'||*p=='(') p++;
-    if(!strchr(p, ',')) { fprintf(stderr, "Error línea %d: Formato inválido. Uso: ESPERAR(valor, UNIDAD)\n", la); exit(1); }
-    procesar_esperar(l+7); c->linea_num++; return 0;
-}
-static int cmd_sistema(const char *l, CtxBloque *c, int la) { (void)la; procesar_sistema(l+7); c->linea_num++; return 0; }
-
-static int cmd_configurar_pin(const char *linea, CtxBloque *ctx, int linea_actual) {
-    (void)linea_actual; procesar_gpio_configurar(linea + 13); ctx->linea_num++; return 0; }
-static int cmd_estado_pin(const char *linea, CtxBloque *ctx, int linea_actual) {
-    (void)linea_actual; procesar_gpio_estado_pin(linea + 9); ctx->linea_num++; return 0; }
-static int cmd_leer_pin(const char *linea, CtxBloque *ctx, int linea_actual) {
-    (void)linea_actual; procesar_gpio_leer(linea + 7); ctx->linea_num++; return 0; }
-
 static int dispatch_command(const char *linea, CtxBloque *ctx, int linea_actual) {
     const char *ptr = linea;
     while (*ptr == ' ' || *ptr == '\t') ptr++;
@@ -1685,7 +1619,7 @@ int ejecutar_bloque(CtxBloque *ctx) {
         }
         
         if (!ctx->en_bloque_principal && !ctx->en_subprograma && !ctx->en_funcion) {
-            if (comienza_con(linea, "LEER") ||
+            if (comienza_con(linea, "ESCRIBIR") || comienza_con(linea, "MOSTRAR") || comienza_con(linea, "LEER") ||
                 comienza_con(linea, "LIMPIARPANTALLA") || comienza_con(linea, "ESPERAR") ||
                 comienza_con(linea, "SISTEMA") || comienza_con(linea, "CALCULAR") ||
                 comienza_con(linea, "ASIGNAR") || comienza_con(linea, "RESULTADO") ||
@@ -2041,7 +1975,118 @@ int ejecutar_bloque(CtxBloque *ctx) {
         }   
         continue;
         }
-       
+        
+        if (comienza_con(linea, "CONFIGURARPIN")) {
+            procesar_gpio_configurar(linea + 13);
+            ctx->linea_num++;
+            continue;
+        }
+        
+        if (comienza_con(linea, "ESTADOPIN")) {
+            procesar_gpio_estado_pin(linea + 9);
+            ctx->linea_num++;
+            continue;
+        }
+        
+        if (comienza_con(linea, "LEERPIN")) {
+            procesar_gpio_leer(linea + 7);
+            ctx->linea_num++;
+            continue;
+        }
+        
+        if (comienza_con(linea, "ESCRIBIR") || comienza_con(linea, "MOSTRAR")) {
+            char *texto;
+            if (comienza_con(linea, "ESCRIBIR")) {
+                texto = linea + 8;
+            } else {
+                texto = linea + 7;
+            }
+            while (*texto == ' ' || *texto == '\t') texto++;
+            procesar_escribir(texto);
+            fflush(stdout);
+            ctx->linea_num++;
+            continue;
+        }
+        
+        if (comienza_con(linea, "CURSOR") || comienza_con(linea, "POSICIONAR")) {
+            const char *ptr = strchr(linea, '(');
+            if (ptr) {
+                ptr++;
+                char buffer[MAX_LINEA];
+                strncpy(buffer, ptr, MAX_LINEA - 1);
+                buffer[MAX_LINEA - 1] = '\0';
+        
+                char *fin = strchr(buffer, ')');
+                if (fin) *fin = '\0';
+        
+                char *coma = strchr(buffer, ',');
+                if (coma) {
+                    *coma = '\0';
+                    int fila = atoi(buffer);
+                    int columna = atoi(coma + 1);
+            
+                    if (fila > 0 && columna > 0) {
+                        nico_posicionar_cursor(fila, columna);
+                    }
+                }
+            }
+            ctx->linea_num++;
+            continue;
+        }       
+ 
+        if (comienza_con(linea, "ESCRIBIRARCHIVO")) {
+            procesar_escribirarchivo(linea + 15);
+            ctx->linea_num++;
+            continue;
+        }
+        
+        if (comienza_con(linea, "LEERARCHIVO")) {
+            procesar_leerarchivo(linea + 11);
+            ctx->linea_num++;
+            continue;
+        }
+        
+        if (comienza_con(linea, "LEERLINEA")) {
+            procesar_leerlinea(linea + 9);
+            ctx->linea_num++;
+            continue;
+        }
+        
+        if (comienza_con(linea, "ABRIRARCHIVO")) {
+            procesar_abrirarchivo(linea + 13);
+            ctx->linea_num++;
+            continue;
+        }        
+
+        if (comienza_con(linea, "CERRARARCHIVO")) {
+            procesar_cerrararchivo(linea + 13);
+            ctx->linea_num++;
+            continue;
+        }
+        
+        if (comienza_con(linea, "LEER")) {
+            char *argumento = linea + 4;
+            while (*argumento == ' ' || *argumento == '\t') argumento++;
+            procesar_leer(argumento);
+            ctx->linea_num++;
+            continue;
+        }
+        
+        if (comienza_con(linea, "LEERHASTA")) {
+            const char *apertura = strchr(linea, '(');
+            if (apertura) {
+                procesar_leerhasta(apertura);
+            }
+            ctx->linea_num++;
+            continue;
+        }
+        
+        if (comienza_con(linea, "LEERCARACTER")) {
+            procesar_leercaracter(linea + 14);
+            ctx->linea_num++;
+            continue;
+        }
+
         int res = dispatch_command(linea, ctx, linea_actual);
         if (res >= 0) continue;      
         if (res == -1) return -1;    
@@ -2055,7 +2100,32 @@ int ejecutar_bloque(CtxBloque *ctx) {
             procesar_funcion_texto(linea);
             ctx->linea_num++;
             continue;
-        }      
+        }
+        
+        if (comienza_con(linea, "ESPERAR")) {
+            const char *ptr = linea + 7;
+            while (*ptr == ' ' || *ptr == '\t' || *ptr == '(') ptr++;
+            
+            if (!strchr(ptr, ',')) {
+                fprintf(stderr, "Error línea %d: Formato inválido. Uso correcto: ESPERAR(valor, UNIDAD)\n", ctx->linea_num + 1);
+                exit(1);
+            }
+            
+            char *argumento = linea + 7;
+            while (*argumento == ' ' || *argumento == '\t') argumento++;
+            procesar_esperar(argumento);
+            ctx->linea_num++;
+            continue;
+        }
+        
+        if (comienza_con(linea, "SISTEMA")) {
+            char *argumento = linea + 7;
+            while (*argumento == ' ' || *argumento == '\t') argumento++;
+            procesar_sistema(argumento);
+            ctx->linea_num++;
+            continue;
+        }
+        
         ctx->linea_num++;
     }
     return error_fatal ? -1 : 0;
