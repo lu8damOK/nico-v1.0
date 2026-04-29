@@ -16,75 +16,75 @@
 /* === TABLA DE DESPACHO DE COMANDOS === */
 typedef int (*CmdHandler)(const char *linea, CtxBloque *ctx, int linea_actual);
 
-typedef struct {
+/*typedef struct {
     const char *keyword;
     CmdHandler handler;
-} CmdEntry;
+} CmdEntry;*/
 
 // Handlers forward declarations
-static int cmd_resettexto(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_resetcolor(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_limpiarpantalla(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_escribir(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_colortexto(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_colorfondo(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_textonegrita(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_textocursiva(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_textosubrayado(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_calcular(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_resultado(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_asignar(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_var_entera(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_var_decimal(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_var_texto(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_var_caracter(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_var_entera_sin(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_var_decimal_sin(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_var_caracter_sin(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_constante_entera(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_constante_decimal(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_constante_texto(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_constante_entera_sin(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_constante_decimal_sin(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_llamar_a(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_subprograma(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_fin_subprograma(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_si(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_sino_si(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_sino(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_fin_si(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_segun_caso(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_caso(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_por_defecto(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_fin_segun(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_funcion(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_fin_funcion(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_retornar(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_lista_entera(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_lista_decimal(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_lista_caracter(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_lista_entera_sin(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_lista_decimal_sin(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_lista_caracter_sin(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_matriz_entera(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_matriz_decimal(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_matriz_caracter(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_matriz_entera_sin(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_matriz_decimal_sin(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_matriz_caracter_sin(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_var_archivo(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_fin_para(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_fin_mientras(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_saltar_a(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_para(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_realizar(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_mientras(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_corte(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_configurar_pin(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_estado_pin(const char *linea, CtxBloque *ctx, int linea_actual);
-static int cmd_leer_pin(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_resettexto(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_resetcolor(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_limpiarpantalla(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_escribir(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_colortexto(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_colorfondo(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_textonegrita(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_textocursiva(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_textosubrayado(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_calcular(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_resultado(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_asignar(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_var_entera(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_var_decimal(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_var_texto(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_var_caracter(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_var_entera_sin(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_var_decimal_sin(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_var_caracter_sin(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_constante_entera(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_constante_decimal(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_constante_texto(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_constante_entera_sin(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_constante_decimal_sin(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_llamar_a(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_subprograma(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_fin_subprograma(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_si(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_sino_si(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_sino(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_fin_si(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_segun_caso(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_caso(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_por_defecto(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_fin_segun(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_funcion(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_fin_funcion(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_retornar(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_lista_entera(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_lista_decimal(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_lista_caracter(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_lista_entera_sin(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_lista_decimal_sin(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_lista_caracter_sin(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_matriz_entera(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_matriz_decimal(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_matriz_caracter(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_matriz_entera_sin(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_matriz_decimal_sin(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_matriz_caracter_sin(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_var_archivo(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_fin_para(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_fin_mientras(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_saltar_a(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_para(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_realizar(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_mientras(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_corte(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_configurar_pin(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_estado_pin(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_leer_pin(const char *linea, CtxBloque *ctx, int linea_actual);
 
-static const CmdEntry dispatch_table[] = {
+/*static const CmdEntry dispatch_table[] = {
     { "RESETTEXTO",          cmd_resettexto          },
     { "RESETCOLOR",          cmd_resetcolor          },
     { "LIMPIARPANTALLA",     cmd_limpiarpantalla     },
@@ -173,7 +173,7 @@ static const CmdEntry dispatch_table[] = {
     { "ESTADOPIN",         cmd_estado_pin          },
     { "LEERPIN",           cmd_leer_pin            },
     { NULL, NULL }
-};
+};*/
 
 /* DECLARACIONES FORWARD */
 int modo_estricto = 1;
@@ -627,9 +627,6 @@ void asignar_valor_retorno_funcion(void) {
     agregar_variable_decimal(nombre, valor_retorno_funcion);
 }
 
-/* Prototipo del motor de ejecución */
-int ejecutar_bloque(CtxBloque *ctx);
-
 /* EJECUTAR PROGRAMA CARGADO */
 int ejecutar_programa_cargado(void) {
     inicializar_semilla_aleatoria();
@@ -725,7 +722,7 @@ int ejecutar_programa_cargado(void) {
     return 0;
 }
 
-static int cmd_resettexto(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_resettexto(const char *linea, CtxBloque *ctx, int linea_actual) {
     const char *ptr = linea + 10;
     while (*ptr == ' ' || *ptr == '\t') ptr++;
     if (*ptr == '(' || *ptr == ')') {
@@ -737,7 +734,7 @@ static int cmd_resettexto(const char *linea, CtxBloque *ctx, int linea_actual) {
     ctx->linea_num++; return 0;
 }
 
-static int cmd_resetcolor(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_resetcolor(const char *linea, CtxBloque *ctx, int linea_actual) {
     const char *ptr = linea + 10;
     while (*ptr == ' ' || *ptr == '\t') ptr++;
     if (*ptr == '(' || *ptr == ')') {
@@ -749,12 +746,12 @@ static int cmd_resetcolor(const char *linea, CtxBloque *ctx, int linea_actual) {
     ctx->linea_num++; return 0;
 }
 
-static int cmd_limpiarpantalla(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_limpiarpantalla(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea; (void)linea_actual;
     procesar_limpiarpantalla(); ctx->linea_num++; return 0;
 }
 
-static int cmd_escribir(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_escribir(const char *linea, CtxBloque *ctx, int linea_actual) {
     const char *start = strchr(linea, '(');
     const char *end = strrchr(linea, ')');
     if (!start || !end || end <= start) {
@@ -772,7 +769,7 @@ static int cmd_escribir(const char *linea, CtxBloque *ctx, int linea_actual) {
     ctx->linea_num++; return 0;
 }
 
-static int cmd_colortexto(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_colortexto(const char *linea, CtxBloque *ctx, int linea_actual) {
     const char *start = strchr(linea, '(');
     const char *end = strrchr(linea, ')');
     if (!start || !end || end <= start) {
@@ -790,7 +787,7 @@ static int cmd_colortexto(const char *linea, CtxBloque *ctx, int linea_actual) {
     ctx->linea_num++; return 0;
 }
 
-static int cmd_colorfondo(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_colorfondo(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea_actual;
     const char *ptr = linea + 10;
     while (*ptr == ' ' || *ptr == '\t') ptr++;
@@ -807,7 +804,7 @@ static int cmd_colorfondo(const char *linea, CtxBloque *ctx, int linea_actual) {
     ctx->linea_num++; return 0;
 }
 
-static int cmd_textonegrita(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_textonegrita(const char *linea, CtxBloque *ctx, int linea_actual) {
     const char *ptr = linea + 13;
     while (*ptr == ' ' || *ptr == '\t') ptr++;
     if (*ptr == '(' || *ptr == ')') {
@@ -819,7 +816,7 @@ static int cmd_textonegrita(const char *linea, CtxBloque *ctx, int linea_actual)
     ctx->linea_num++; return 0;
 }
 
-static int cmd_textocursiva(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_textocursiva(const char *linea, CtxBloque *ctx, int linea_actual) {
     const char *ptr = linea + 12;
     while (*ptr == ' ' || *ptr == '\t') ptr++;
     if (*ptr == '(' || *ptr == ')') {
@@ -831,7 +828,7 @@ static int cmd_textocursiva(const char *linea, CtxBloque *ctx, int linea_actual)
     ctx->linea_num++; return 0;
 }
 
-static int cmd_textosubrayado(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_textosubrayado(const char *linea, CtxBloque *ctx, int linea_actual) {
     const char *ptr = linea + 14;
     while (*ptr == ' ' || *ptr == '\t') ptr++;
     if (*ptr == '(' || *ptr == ')') {
@@ -843,7 +840,7 @@ static int cmd_textosubrayado(const char *linea, CtxBloque *ctx, int linea_actua
     ctx->linea_num++; return 0;
 }
 
-static int cmd_calcular(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_calcular(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea_actual; 
     procesar_calcular(linea + 11);
     if (ctx->error_fatal) {
@@ -853,13 +850,13 @@ static int cmd_calcular(const char *linea, CtxBloque *ctx, int linea_actual) {
     ctx->linea_num++; return 0;
 }
 
-static int cmd_resultado(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_resultado(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea_actual;
     procesar_calcular(linea + 12);
     ctx->linea_num++; return 0;
 }
 
-static int cmd_asignar(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_asignar(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea_actual; 
     procesar_calcular(linea + 10);
     ctx->linea_num++; return 0;
@@ -874,49 +871,49 @@ static inline int check_declaracion(CtxBloque *ctx, int linea_actual, const char
     return 0;
 }
 
-static int cmd_var_entera(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_var_entera(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (check_declaracion(ctx, linea_actual, ".") != 0) return -1;
     if (procesar_declaracion_variable_entera(linea, linea_actual) < 0) return -1;
     ctx->linea_num++; return 0;
 }
 
-static int cmd_var_decimal(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_var_decimal(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (check_declaracion(ctx, linea_actual, ".") != 0) return -1;
     if (procesar_declaracion_variable_decimal(linea, linea_actual) < 0) return -1;
     ctx->linea_num++; return 0;
 }
 
-static int cmd_var_texto(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_var_texto(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (check_declaracion(ctx, linea_actual, ".") != 0) return -1;
     if (procesar_declaracion_variable_texto(linea, linea_actual) < 0) return -1;
     ctx->linea_num++; return 0;
 }
 
-static int cmd_var_caracter(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_var_caracter(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (check_declaracion(ctx, linea_actual, ".") != 0) return -1;
     if (procesar_declaracion_variable_caracter(linea, linea_actual) < 0) return -1;
     ctx->linea_num++; return 0;
 }
 
-static int cmd_var_entera_sin(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_var_entera_sin(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (check_declaracion(ctx, linea_actual, ": Declaraciones solo al inicio.") != 0) return -1;
     if (procesar_declaracion_variable_entera_sin_signo(linea, linea_actual) < 0) return -1;
     ctx->linea_num++; return 0;
 }
 
-static int cmd_var_decimal_sin(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_var_decimal_sin(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (check_declaracion(ctx, linea_actual, ": Declaraciones solo al inicio.") != 0) return -1;
     if (procesar_declaracion_variable_decimal_sin_signo(linea, linea_actual) < 0) return -1;
     ctx->linea_num++; return 0;
 }
 
-static int cmd_var_caracter_sin(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_var_caracter_sin(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (check_declaracion(ctx, linea_actual, ": Declaraciones solo al inicio.") != 0) return -1;
     if (procesar_declaracion_variable_caracter_sin_signo(linea, linea_actual) < 0) return -1;
     ctx->linea_num++; return 0;
 }
 
-static int cmd_constante_entera(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_constante_entera(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (!ctx->declaraciones_permitidas) {
         fprintf(stderr, "Error línea %d.\n", linea_actual);
         return -1;
@@ -925,7 +922,7 @@ static int cmd_constante_entera(const char *linea, CtxBloque *ctx, int linea_act
     ctx->linea_num++; return 0;
 }
 
-static int cmd_constante_decimal(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_constante_decimal(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (!ctx->declaraciones_permitidas) {
         fprintf(stderr, "Error línea %d.\n", linea_actual);
         return -1;
@@ -934,7 +931,7 @@ static int cmd_constante_decimal(const char *linea, CtxBloque *ctx, int linea_ac
     ctx->linea_num++; return 0;
 }
 
-static int cmd_constante_texto(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_constante_texto(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (!ctx->declaraciones_permitidas) {
         fprintf(stderr, "Error línea %d: Declaraciones solo al inicio.\n", linea_actual);
         return -1;
@@ -943,7 +940,7 @@ static int cmd_constante_texto(const char *linea, CtxBloque *ctx, int linea_actu
     ctx->linea_num++; return 0;
 }
 
-static int cmd_constante_entera_sin(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_constante_entera_sin(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (!ctx->declaraciones_permitidas) {
         fprintf(stderr, "Error línea %d: Declaraciones solo al inicio.\n", linea_actual);
         return -1;
@@ -952,7 +949,7 @@ static int cmd_constante_entera_sin(const char *linea, CtxBloque *ctx, int linea
     ctx->linea_num++; return 0;
 }
 
-static int cmd_constante_decimal_sin(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_constante_decimal_sin(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (!ctx->declaraciones_permitidas) {
         fprintf(stderr, "Error línea %d: Declaraciones solo al inicio.\n", linea_actual);
         return -1;
@@ -961,7 +958,7 @@ static int cmd_constante_decimal_sin(const char *linea, CtxBloque *ctx, int line
     ctx->linea_num++; return 0;
 }
 
-static int cmd_llamar_a(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_llamar_a(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (!ctx->en_bloque_principal && !ctx->en_subprograma && !ctx->en_funcion) {
         fprintf(stderr, "Error línea %d: LLAMAR A solo permitido dentro de BLOQUE PRINCIPAL, SUBPROGRAMA o FUNCION.\n", linea_actual);
         return -1;
@@ -1060,7 +1057,7 @@ static int cmd_llamar_a(const char *linea, CtxBloque *ctx, int linea_actual) {
     return 0;
 }
 
-static int cmd_subprograma(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_subprograma(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea; (void)linea_actual;
     if (ctx->fase_declaraciones || ctx->en_bloque_principal) {
         int fin = encontrar_fin_subprograma(ctx->linea_num);
@@ -1077,7 +1074,7 @@ static int cmd_subprograma(const char *linea, CtxBloque *ctx, int linea_actual) 
     return 0;
 }
 
-static int cmd_fin_subprograma(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_fin_subprograma(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea; (void)linea_actual; 
     ctx->en_subprograma = 0;
     if (sub_stack_ptr > 0) {
@@ -1089,7 +1086,7 @@ static int cmd_fin_subprograma(const char *linea, CtxBloque *ctx, int linea_actu
     return 0;
 }
 
-static int cmd_si(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_si(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (!strstr(linea, "ENTONCES")) {
         fprintf(stderr, "Error de sintaxis en línea %d: Falta 'ENTONCES'.\nFormato correcto: SI (condición) ENTONCES.\n", linea_actual);
         if (modo_estricto) exit(1);
@@ -1147,7 +1144,7 @@ static int cmd_si(const char *linea, CtxBloque *ctx, int linea_actual) {
     }
 }
 
-static int cmd_sino_si(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_sino_si(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea_actual;
     if (!strstr(linea, "ENTONCES")) {
         fprintf(stderr, "Error de sintaxis en línea %d: Falta 'ENTONCES' en declaración SINO SI.\n", linea_actual);
@@ -1164,7 +1161,7 @@ static int cmd_sino_si(const char *linea, CtxBloque *ctx, int linea_actual) {
     return 0;
 }
 
-static int cmd_sino(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_sino(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea; (void)linea_actual;
     if (si_stack_ptr > 0) {
         int fin_si = si_stack[si_stack_ptr - 1].linea_fin;
@@ -1176,21 +1173,21 @@ static int cmd_sino(const char *linea, CtxBloque *ctx, int linea_actual) {
     return 0;
 }
 
-static int cmd_fin_si(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_fin_si(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea; (void)linea_actual;
     if (si_stack_ptr > 0) si_stack_ptr--;
     ctx->linea_num++;
     return 0;
 }
 
-static int cmd_fin_segun(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_fin_segun(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea; (void)linea_actual;
     if (segun_stack_ptr > 0) segun_stack_ptr--;
     ctx->linea_num++;
     return 0;
 }
 
-static int cmd_segun_caso(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_segun_caso(const char *linea, CtxBloque *ctx, int linea_actual) {
     int exito;
     double valor = 0;
     const char *ptr = linea + 10; 
@@ -1224,7 +1221,7 @@ static int cmd_segun_caso(const char *linea, CtxBloque *ctx, int linea_actual) {
     return 0;
 }
 
-static int cmd_caso(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_caso(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea_actual;
     if (segun_stack_ptr <= 0) { ctx->linea_num++; return 0; }
     
@@ -1282,7 +1279,7 @@ static int cmd_caso(const char *linea, CtxBloque *ctx, int linea_actual) {
     return 0;
 }
 
-static int cmd_por_defecto(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_por_defecto(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea; (void)linea_actual;
     if (segun_stack_ptr <= 0) { ctx->linea_num++; return 0; }
     
@@ -1311,7 +1308,7 @@ static int cmd_por_defecto(const char *linea, CtxBloque *ctx, int linea_actual) 
     return 0;
 }
 
-static int cmd_funcion(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_funcion(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea;
     if (ctx->fase_declaraciones && !ctx->en_bloque_principal) {
         int fin = encontrar_fin_funcion(ctx->linea_num);
@@ -1326,7 +1323,7 @@ static int cmd_funcion(const char *linea, CtxBloque *ctx, int linea_actual) {
     return 0;
 }
 
-static int cmd_fin_funcion(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_fin_funcion(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea;
     if (si_stack_ptr != 0) {
         fprintf(stderr, "Error: Hay %d bloque(s) 'SI' sin cerrar al llegar a FIN FUNCION (línea %d).\n", si_stack_ptr, linea_actual);
@@ -1359,7 +1356,7 @@ static int cmd_fin_funcion(const char *linea, CtxBloque *ctx, int linea_actual) 
     return 0;
 }
 
-static int cmd_retornar(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_retornar(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (!ctx->en_funcion) {
         fprintf(stderr, "Error línea %d: RETORNAR solo permitido dentro de FUNCION.\n", linea_actual);
         return -1;
@@ -1392,21 +1389,21 @@ static inline int handle_declaracion(const char *linea, CtxBloque *ctx, int line
     return 0;
 }
 
-static int cmd_lista_entera(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_lista_entera, "."); }
-static int cmd_lista_decimal(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_lista_decimal, "."); }
-static int cmd_lista_caracter(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_lista_caracter, ": Declaraciones solo al inicio."); }
-static int cmd_lista_entera_sin(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_lista_entera_sin_signo, ": Declaraciones solo al inicio."); }
-static int cmd_lista_decimal_sin(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_lista_decimal_sin_signo, ": Declaraciones solo al inicio."); }
-static int cmd_lista_caracter_sin(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_lista_caracter_sin_signo, ": Declaraciones solo al inicio."); }
+int cmd_lista_entera(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_lista_entera, "."); }
+int cmd_lista_decimal(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_lista_decimal, "."); }
+int cmd_lista_caracter(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_lista_caracter, ": Declaraciones solo al inicio."); }
+int cmd_lista_entera_sin(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_lista_entera_sin_signo, ": Declaraciones solo al inicio."); }
+int cmd_lista_decimal_sin(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_lista_decimal_sin_signo, ": Declaraciones solo al inicio."); }
+int cmd_lista_caracter_sin(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_lista_caracter_sin_signo, ": Declaraciones solo al inicio."); }
 
-static int cmd_matriz_entera(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_matriz_entera, ": Declaraciones solo al inicio."); }
-static int cmd_matriz_decimal(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_matriz_decimal, ": Declaraciones solo al inicio."); }
-static int cmd_matriz_caracter(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_matriz_caracter, ": Declaraciones solo al inicio."); }
-static int cmd_matriz_entera_sin(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_matriz_entera_sin_signo, ": Declaraciones solo al inicio."); }
-static int cmd_matriz_decimal_sin(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_matriz_decimal_sin_signo, ": Declaraciones solo al inicio."); }
-static int cmd_matriz_caracter_sin(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_matriz_caracter_sin_signo, ": Declaraciones solo al inicio."); }
+int cmd_matriz_entera(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_matriz_entera, ": Declaraciones solo al inicio."); }
+int cmd_matriz_decimal(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_matriz_decimal, ": Declaraciones solo al inicio."); }
+int cmd_matriz_caracter(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_matriz_caracter, ": Declaraciones solo al inicio."); }
+int cmd_matriz_entera_sin(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_matriz_entera_sin_signo, ": Declaraciones solo al inicio."); }
+int cmd_matriz_decimal_sin(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_matriz_decimal_sin_signo, ": Declaraciones solo al inicio."); }
+int cmd_matriz_caracter_sin(const char *l, CtxBloque *c, int la) { return handle_declaracion(l, c, la, procesar_declaracion_matriz_caracter_sin_signo, ": Declaraciones solo al inicio."); }
 
-static int cmd_var_archivo(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_var_archivo(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (!ctx->declaraciones_permitidas) {
         fprintf(stderr, "Error línea %d: Declaraciones solo al inicio.\n", linea_actual); return -1;
     }
@@ -1414,7 +1411,7 @@ static int cmd_var_archivo(const char *linea, CtxBloque *ctx, int linea_actual) 
     ctx->linea_num++; return 0;
 }
 
-static int cmd_fin_para(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_fin_para(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea;
     if (para_stack_ptr > 0) {
         ParaBloque *bloque = &para_stack[para_stack_ptr - 1];
@@ -1431,7 +1428,7 @@ static int cmd_fin_para(const char *linea, CtxBloque *ctx, int linea_actual) {
     return 0;
 }
 
-static int cmd_fin_mientras(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_fin_mientras(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea; (void)linea_actual;
     int nivel = 0, linea_mientras = ctx->linea_num - 1, while_line = -1;
     while (linea_mientras >= 0) {
@@ -1457,7 +1454,7 @@ static int cmd_fin_mientras(const char *linea, CtxBloque *ctx, int linea_actual)
     return 0;
 }
 
-static int cmd_saltar_a(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_saltar_a(const char *linea, CtxBloque *ctx, int linea_actual) {
     const char *ptr = linea + 8; while (*ptr == ' ' || *ptr == '\t') ptr++;
     char nom[MAX_NOMBRE]; int j=0; while (*ptr && !isspace((unsigned char)*ptr) && j<MAX_NOMBRE-1) nom[j++] = *ptr++; nom[j]='\0';
     int ld = ejecutar_salto_a_etiqueta(nom, linea_actual);
@@ -1465,7 +1462,7 @@ static int cmd_saltar_a(const char *linea, CtxBloque *ctx, int linea_actual) {
     return 0;
 }
 
-static int cmd_para(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_para(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (!strstr(linea, "HACER")) { ctx->linea_num++; return 0; }
     const char *p = linea + 4; while(*p==' ') p++; int nivel=0;
     if (*p=='{') { p++; nivel=atoi(p); while(*p&&*p!='}')p++; if(*p=='}')p++; }
@@ -1489,7 +1486,7 @@ static int cmd_para(const char *linea, CtxBloque *ctx, int linea_actual) {
     return 0;
 }
 
-static int cmd_realizar(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_realizar(const char *linea, CtxBloque *ctx, int linea_actual) {
     int nivel=0; const char *p=linea+8; while(*p==' ')p++; if (*p=='{') { p++; nivel=atoi(p); while(*p&&*p!='}')p++; if (*p=='}')p++; }
     int ya=0; for(int i=0;i<proceder_stack_ptr;i++) if (proceder_stack[i].nivel==nivel && proceder_stack[i].linea_inicio==ctx->linea_num) { ya=1; break; }
     int fp=encontrar_fin_proceder(ctx->linea_num, nivel); if (fp==-1) { fprintf(stderr, "Error línea %d: REALIZAR sin MIENTRAS.\n", linea_actual); ctx->linea_num++; return 0; }
@@ -1497,7 +1494,7 @@ static int cmd_realizar(const char *linea, CtxBloque *ctx, int linea_actual) {
     ctx->linea_num++; return 0;
 }
 
-static int cmd_mientras(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_mientras(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (strchr(linea, '(') && proceder_stack_ptr > 0) {
         int nivel=0; const char *p=linea+8; while(*p==' ')p++; if (*p=='{') { p++; nivel=atoi(p); }
         int exito, res; char cond[MAX_LINEA]="";
@@ -1524,7 +1521,7 @@ static int cmd_mientras(const char *linea, CtxBloque *ctx, int linea_actual) {
     ctx->linea_num++; return 0;
 }
 
-static int cmd_corte(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_corte(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea; int realizado=0;
     if (segun_stack_ptr>0) { int fs=segun_stack[segun_stack_ptr-1].linea_fin; segun_stack_ptr--; if(fs!=-1){ctx->linea_num=fs+1;realizado=1;} }
     if (!realizado && mientras_stack_ptr>0) { int fm=mientras_stack[mientras_stack_ptr-1].linea_fin; if(fm!=-1){ctx->linea_num=fm+1;mientras_stack_ptr--;realizado=1;} }
@@ -1538,28 +1535,28 @@ static int cmd_corte(const char *linea, CtxBloque *ctx, int linea_actual) {
     return 0;
 }
 
-static int cmd_configurar_pin(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_configurar_pin(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea_actual;
     procesar_gpio_configurar(linea + 13);
     ctx->linea_num++;
     return 0;
 }
 
-static int cmd_estado_pin(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_estado_pin(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea_actual;
     procesar_gpio_estado_pin(linea + 9);
     ctx->linea_num++;
     return 0;
 }
 
-static int cmd_leer_pin(const char *linea, CtxBloque *ctx, int linea_actual) {
+int cmd_leer_pin(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea_actual;
     procesar_gpio_leer(linea + 7);
     ctx->linea_num++;
     return 0;
 }
 
-static int dispatch_command(const char *linea, CtxBloque *ctx, int linea_actual) {
+/*static int dispatch_command(const char *linea, CtxBloque *ctx, int linea_actual) {
     const char *ptr = linea;
     while (*ptr == ' ' || *ptr == '\t') ptr++;
     
@@ -1569,10 +1566,10 @@ static int dispatch_command(const char *linea, CtxBloque *ctx, int linea_actual)
         }
     }
     return -2;
-}
+}*/
 
 /* MOTOR GENÉRICO DE EJECUCIÓN */
-int ejecutar_bloque(CtxBloque *ctx) {
+/*int ejecutar_bloque(CtxBloque *ctx) {
     while (ctx->linea_num < num_lineas_programa && 
       (ctx->linea_limite < 0 || ctx->linea_num <= ctx->linea_limite)) {   
         char linea[MAX_LINEA];
@@ -1852,7 +1849,7 @@ int ejecutar_bloque(CtxBloque *ctx) {
     }
     return error_fatal ? -1 : 0; 
 }    
-
+*/
 
 int main(int argc, char *argv[]) {
 #ifdef _WIN32

@@ -904,7 +904,7 @@ void procesar_escribir(const char *texto) {
             nombre[j] = '\0';
             int encontrado = 0;
             char buf_num[64] = {0};
-            char buf_texto[MAX_TEXTO_LEN] = {0};
+           // char buf_texto[MAX_TEXTO_LEN] = {0};
             int idx;
 
             char *corchete = strchr(ptr, '[');
