@@ -1122,18 +1122,26 @@ void procesar_escribir(const char *texto) {
                 }
             }
 
-            if (scope_actual >= 0 && buscar_texto_local(nombre, buf_texto)) {
-                strcat(resultado, buf_texto);
+            int idx_txt = -1;
+            if (scope_actual >= 0) {
+                for (int s = scope_actual; s >= 0; s--) {
+                    for (int v = 0; v < scopes_locales[s].num_textos; v++) {
+                        if (strcmp(scopes_locales[s].nombres_textos[v], nombre) == 0) {
+                            idx_txt = scopes_locales[s].indices_textos[v];
+                            break;
+                        }
+                    }
+                    if (idx_txt >= 0) break;
+                }
+            }
+            if (idx_txt < 0) idx_txt = buscar_texto_var(nombre);
+
+            if (idx_txt >= 0) {
+                strcat(resultado, texto_vars[idx_txt].valor);
                 encontrado = 1;
             }
-
-            else if ((idx = buscar_texto_var(nombre)) >= 0) {
-                strcat(resultado, texto_vars[idx].valor);
-                encontrado = 1;
-            }
-
-            else if ((idx = buscar_texto_constante(nombre)) >= 0) {
-                strcat(resultado, texto_constantes[idx].valor);
+            else if ((idx_txt = buscar_texto_constante(nombre)) >= 0) {
+                strcat(resultado, texto_constantes[idx_txt].valor);
                 encontrado = 1;
             }
 
@@ -1284,9 +1292,44 @@ void procesar_leer(const char *argumento) {
     double valor_num = strtod(entrada, &fin);
     int es_numero = (fin != entrada && *fin == '\0');
     
-    int idx = buscar_texto_var(nombre_var);
-    if (idx >= 0) { strncpy(texto_vars[idx].valor, entrada, MAX_TEXTO_LEN - 1); return; }
+    int idx_pool = -1;
+    if (scope_actual >= 0) {
+        for (int s = scope_actual; s >= 0; s--) {
+            for (int v = 0; v < scopes_locales[s].num_textos; v++) {
+                if (strcmp(scopes_locales[s].nombres_textos[v], nombre_var) == 0) {
+                    idx_pool = scopes_locales[s].indices_textos[v];
+                    break;
+                }
+            }
+            if (idx_pool != -1) break;
+        }
+    }
     
+    if (idx_pool >= 0) {
+        strncpy(texto_vars[idx_pool].valor, entrada, MAX_TEXTO_LEN - 1);
+        texto_vars[idx_pool].valor[MAX_TEXTO_LEN - 1] = '\0';
+        return;
+    }
+    
+    int idx = buscar_texto_var(nombre_var);
+    if (idx >= 0) {
+        strncpy(texto_vars[idx].valor, entrada, MAX_TEXTO_LEN - 1);
+        return;
+    }
+    
+    if (scope_actual >= 0 && en_funcion) {
+        agregar_texto_local(nombre_var, entrada);
+        return;
+    }
+    
+    agregar_texto_var(nombre_var, entrada);
+     
+    if (idx >= 0) {
+        strncpy(texto_vars[idx].valor, entrada, MAX_TEXTO_LEN - 1);
+        texto_vars[idx].valor[MAX_TEXTO_LEN - 1] = '\0';
+        return;
+    }
+
     if (strlen(entrada) > 0) {
         idx = buscar_variable_caracter(nombre_var);
         if (idx >= 0) { variables_caracter[idx].valor = entrada[0]; return; }
@@ -1314,11 +1357,52 @@ void procesar_leer(const char *argumento) {
     if (idx >= 0) { variables_decimal_sin_signo[idx].valor = valor_num; return; }
     
     if (en_funcion) {
+        int local_idx = -1;
+        if (scope_actual >= 0) {
+            for (int s = scope_actual; s >= 0; s--) {
+                for (int v = 0; v < scopes_locales[s].num_textos; v++) {
+                    if (strcmp(scopes_locales[s].nombres_textos[v], nombre_var) == 0) {
+                        local_idx = scopes_locales[s].indices_textos[v];
+                        break;
+                    }
+                }
+                if (local_idx >= 0) break;
+            }
+        }
+        if (local_idx >= 0) {
+            strncpy(texto_vars[local_idx].valor, entrada, MAX_TEXTO_LEN - 1);
+            texto_vars[local_idx].valor[MAX_TEXTO_LEN - 1] = '\0';
+            return;
+        }
+
+            if (en_funcion) {
+        int local_idx = -1;
+        if (scope_actual >= 0 && scope_actual < MAX_SCOPES) {
+            for (int s = scope_actual; s >= 0; s--) {
+                for (int v = 0; v < scopes_locales[s].num_textos; v++) {
+                    const char *n1 = scopes_locales[s].nombres_textos[v];
+                    const char *n2 = nombre_var;
+                    if (n1[0] == '$') n1++;
+                    if (n2[0] == '$') n2++;
+                    if (strcmp(n1, n2) == 0) {
+                        local_idx = scopes_locales[s].indices_textos[v];
+                        break;
+                    }
+                }
+                if (local_idx != -1) break;
+            }
+        }
+        if (local_idx >= 0) {
+            strncpy(texto_vars[local_idx].valor, entrada, MAX_TEXTO_LEN - 1);
+            texto_vars[local_idx].valor[MAX_TEXTO_LEN - 1] = '\0';
+            return;
+        }
+
         if (es_numero) agregar_variable(nombre_var, (int)valor_num);
         else agregar_texto_var(nombre_var, entrada);
         return;
+    }       
     }
-    
     fprintf(stderr, "Error: Variable '$%s' no declarada.\n", nombre_var);
 }
 

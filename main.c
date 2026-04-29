@@ -13,20 +13,6 @@
 #include <limits.h>
 #include <float.h>
 
-/* === CONTEXTO DEL BUCLE PRINCIPAL === */
-typedef struct {
-    int linea_num;
-    int inicio_encontrado;
-    char nombre_programa[MAX_NOMBRE];
-    int declaraciones_permitidas;
-    int en_bloque_principal;
-    int en_subprograma;
-    int en_funcion;
-    int fase_declaraciones;
-    int error_fatal;
-} CtxBloque;
-/* ==================================== */
-
 /* === TABLA DE DESPACHO DE COMANDOS === */
 typedef int (*CmdHandler)(const char *linea, CtxBloque *ctx, int linea_actual);
 
@@ -87,6 +73,16 @@ static int cmd_matriz_entera_sin(const char *linea, CtxBloque *ctx, int linea_ac
 static int cmd_matriz_decimal_sin(const char *linea, CtxBloque *ctx, int linea_actual);
 static int cmd_matriz_caracter_sin(const char *linea, CtxBloque *ctx, int linea_actual);
 static int cmd_var_archivo(const char *linea, CtxBloque *ctx, int linea_actual);
+static int cmd_fin_para(const char *linea, CtxBloque *ctx, int linea_actual);
+static int cmd_fin_mientras(const char *linea, CtxBloque *ctx, int linea_actual);
+static int cmd_saltar_a(const char *linea, CtxBloque *ctx, int linea_actual);
+static int cmd_para(const char *linea, CtxBloque *ctx, int linea_actual);
+static int cmd_realizar(const char *linea, CtxBloque *ctx, int linea_actual);
+static int cmd_mientras(const char *linea, CtxBloque *ctx, int linea_actual);
+static int cmd_corte(const char *linea, CtxBloque *ctx, int linea_actual);
+static int cmd_configurar_pin(const char *linea, CtxBloque *ctx, int linea_actual);
+static int cmd_estado_pin(const char *linea, CtxBloque *ctx, int linea_actual);
+static int cmd_leer_pin(const char *linea, CtxBloque *ctx, int linea_actual);
 
 static const CmdEntry dispatch_table[] = {
     { "RESETTEXTO",          cmd_resettexto          },
@@ -166,6 +162,16 @@ static const CmdEntry dispatch_table[] = {
     { "DECLARAR MATRIZ CARACTER",    cmd_matriz_caracter      },
     { "VARIABLE ARCHIVO",            cmd_var_archivo          },
     { "DECLARAR VARIABLE ARCHIVO",   cmd_var_archivo          },
+    { "FIN MIENTRAS",      cmd_fin_mientras      },
+    { "FIN PARA",          cmd_fin_para          },
+    { "MIENTRAS",          cmd_mientras          },
+    { "REALIZAR",          cmd_realizar          },
+    { "PARA",              cmd_para              },
+    { "SALTAR A",          cmd_saltar_a          },
+    { "CORTE",             cmd_corte             },
+    { "CONFIGURARPIN",     cmd_configurar_pin      },
+    { "ESTADOPIN",         cmd_estado_pin          },
+    { "LEERPIN",           cmd_leer_pin            },
     { NULL, NULL }
 };
 
@@ -694,6 +700,7 @@ int ejecutar_programa_cargado(void) {
     
     CtxBloque ctx = {
         .linea_num = 0,
+        .linea_limite = -1,   
         .inicio_encontrado = 0,
         .nombre_programa = "",
         .declaraciones_permitidas = 1,
@@ -722,10 +729,12 @@ static int cmd_resettexto(const char *linea, CtxBloque *ctx, int linea_actual) {
     const char *ptr = linea + 10;
     while (*ptr == ' ' || *ptr == '\t') ptr++;
     if (*ptr == '(' || *ptr == ')') {
-        fprintf(stderr, "Error línea %d: RESETTEXTO no lleva paréntesis. Uso: RESETTEXTO\n", linea_actual);
+        fprintf(stderr, "Error línea %d: RESETTEXTO no lleva paréntesis.\n", linea_actual);
         ctx->error_fatal = 1; return -1;
     }
-    procesar_textoreset(NULL); ctx->linea_num++; return 0;
+    printf("\033[22;23;24m"); 
+    fflush(stdout);
+    ctx->linea_num++; return 0;
 }
 
 static int cmd_resetcolor(const char *linea, CtxBloque *ctx, int linea_actual) {
@@ -735,7 +744,9 @@ static int cmd_resetcolor(const char *linea, CtxBloque *ctx, int linea_actual) {
         fprintf(stderr, "Error línea %d: RESETCOLOR no lleva paréntesis. Uso: RESETCOLOR\n", linea_actual);
         ctx->error_fatal = 1; return -1;
     }
-    procesar_resetcolor(NULL); ctx->linea_num++; return 0;
+    procesar_resetcolor(NULL); 
+    fflush(stdout);
+    ctx->linea_num++; return 0;
 }
 
 static int cmd_limpiarpantalla(const char *linea, CtxBloque *ctx, int linea_actual) {
@@ -775,41 +786,60 @@ static int cmd_colortexto(const char *linea, CtxBloque *ctx, int linea_actual) {
     strncpy(arg, start, len);
     arg[len] = '\0';
     procesar_colortexto(arg);
+    fflush(stdout);
     ctx->linea_num++; return 0;
 }
 
 static int cmd_colorfondo(const char *linea, CtxBloque *ctx, int linea_actual) {
-    const char *start = strchr(linea, '(');
-    const char *end = strrchr(linea, ')');
-    if (!start || !end || end <= start) {
-        fprintf(stderr, "Error línea %d: COLORFONDO requiere argumento entre paréntesis.\n", linea_actual);
-        ctx->error_fatal = 1; return -1;
+    (void)linea_actual;
+    const char *ptr = linea + 10;
+    while (*ptr == ' ' || *ptr == '\t') ptr++;
+    char arg[MAX_LINEA] = "";
+    if (*ptr == '(') {
+        ptr++;
+        while (*ptr == ' ' || *ptr == '\t') ptr++;
+        int i = 0;
+        while (*ptr && *ptr != ')' && i < MAX_LINEA - 1) arg[i++] = *ptr++;
+        arg[i] = '\0';
     }
-    start++;
-    char arg[32];
-    size_t len = end - start;
-    if (len >= sizeof(arg)) len = sizeof(arg) - 1;
-    strncpy(arg, start, len);
-    arg[len] = '\0';
     procesar_colorfondo(arg);
+    fflush(stdout);
     ctx->linea_num++; return 0;
 }
 
 static int cmd_textonegrita(const char *linea, CtxBloque *ctx, int linea_actual) {
-    (void)linea; (void)linea_actual; 
+    const char *ptr = linea + 13;
+    while (*ptr == ' ' || *ptr == '\t') ptr++;
+    if (*ptr == '(' || *ptr == ')') {
+        fprintf(stderr, "Error línea %d: TEXTONEGRITA no lleva paréntesis.\n", linea_actual);
+        ctx->error_fatal = 1; return -1;
+    }
     procesar_textonegrita(NULL);
+    fflush(stdout);
     ctx->linea_num++; return 0;
 }
 
 static int cmd_textocursiva(const char *linea, CtxBloque *ctx, int linea_actual) {
-    (void)linea; (void)linea_actual;
+    const char *ptr = linea + 12;
+    while (*ptr == ' ' || *ptr == '\t') ptr++;
+    if (*ptr == '(' || *ptr == ')') {
+        fprintf(stderr, "Error línea %d: TEXTOCURSIVA no lleva paréntesis.\n", linea_actual);
+        ctx->error_fatal = 1; return -1;
+    }
     procesar_textocursiva(NULL);
+    fflush(stdout);
     ctx->linea_num++; return 0;
 }
 
 static int cmd_textosubrayado(const char *linea, CtxBloque *ctx, int linea_actual) {
-    (void)linea; (void)linea_actual;
+    const char *ptr = linea + 14;
+    while (*ptr == ' ' || *ptr == '\t') ptr++;
+    if (*ptr == '(' || *ptr == ')') {
+        fprintf(stderr, "Error línea %d: TEXTOSUBRAYADO no lleva paréntesis.\n", linea_actual);
+        ctx->error_fatal = 1; return -1;
+    }
     procesar_textosubrayado(NULL);
+    fflush(stdout);
     ctx->linea_num++; return 0;
 }
 
@@ -1336,13 +1366,18 @@ static int cmd_retornar(const char *linea, CtxBloque *ctx, int linea_actual) {
     }
     const char *ptr = linea + 8;
     while (*ptr == ' ' || *ptr == '\t') ptr++;
-    if (ejecutar_retornar(ptr, linea_actual) < 0) {
-        ctx->linea_num++; return 0;
+
+    if (strlen(ptr) > 0) {
+        if (ejecutar_retornar(ptr, linea_actual) < 0) {
+            hay_valor_retorno = 1;
+            valor_retorno_funcion = 0.0;
+        }
+    } else {
+        hay_valor_retorno = 1;
+        valor_retorno_funcion = 0.0;
     }
-    if (funcion_stack_ptr > 0) {
-        int tipo = funcion_stack[funcion_stack_ptr - 1].tipo_retorno;
-        ctx->linea_num = funciones_registradas[tipo].linea_fin;
-    }
+
+    ctx->linea_num = ctx->linea_limite + 1;
     return 0;
 }
 
@@ -1379,6 +1414,151 @@ static int cmd_var_archivo(const char *linea, CtxBloque *ctx, int linea_actual) 
     ctx->linea_num++; return 0;
 }
 
+static int cmd_fin_para(const char *linea, CtxBloque *ctx, int linea_actual) {
+    (void)linea;
+    if (para_stack_ptr > 0) {
+        ParaBloque *bloque = &para_stack[para_stack_ptr - 1];
+        int valor = get_var_valor_global(bloque->var_nombre);
+        valor += bloque->paso;
+        set_var_valor_global(bloque->var_nombre, valor);
+        int continuar = (bloque->paso > 0) ? (valor <= bloque->fin) : (valor >= bloque->fin);
+        if (continuar) ctx->linea_num = bloque->linea_inicio + 1;
+        else { para_stack_ptr--; ctx->linea_num++; }
+    } else {
+        fprintf(stderr, "Error línea %d: FIN PARA sin PARA.\n", linea_actual);
+        ctx->linea_num++;
+    }
+    return 0;
+}
+
+static int cmd_fin_mientras(const char *linea, CtxBloque *ctx, int linea_actual) {
+    (void)linea; (void)linea_actual;
+    int nivel = 0, linea_mientras = ctx->linea_num - 1, while_line = -1;
+    while (linea_mientras >= 0) {
+        char lp[MAX_LINEA]; strncpy(lp, lineas_programa[linea_mientras], MAX_LINEA-1); lp[MAX_LINEA-1]='\0';
+        limpiar_string(lp); remover_comentario(lp);
+        if (strncmp(lp, "FIN MIENTRAS", 12) == 0) nivel++;
+        else if (strncmp(lp, "MIENTRAS", 8) == 0 && strstr(lp, "HACER")) { if (nivel == 0) { while_line = linea_mientras; break; } nivel--; }
+        linea_mientras--;
+    }
+    if (while_line != -1) {
+        const char *src = lineas_programa[while_line];
+        const char *pa = strchr(src, '('), *pc = pa ? strchr(pa+1, ')') : NULL;
+        char cond[MAX_LINEA] = "";
+        if (pa && pc && pc > pa) { int len = (int)(pc-pa-1); if (len>0 && len<MAX_LINEA-1) { memcpy(cond, pa+1, len); cond[len]='\0'; } }
+        char *ini = cond; while (*ini==' '||*ini=='\t') ini++; char *fin = ini+strlen(ini)-1;
+        while (fin>ini && (*fin==' '||*fin=='\t'||*fin=='\r')) { *fin='\0'; fin--; }
+        if (ini != cond) memmove(cond, ini, strlen(ini)+1);
+        char ce[MAX_LINEA+2]; ce[0]=' '; strcpy(ce+1, cond);
+        int exito=0, res = evaluar_condicion(ce, &exito);
+        if (exito && res) ctx->linea_num = while_line + 1;
+        else { if (mientras_stack_ptr > 0) mientras_stack_ptr--; ctx->linea_num++; }
+    } else { if (mientras_stack_ptr > 0) mientras_stack_ptr--; ctx->linea_num++; }
+    return 0;
+}
+
+static int cmd_saltar_a(const char *linea, CtxBloque *ctx, int linea_actual) {
+    const char *ptr = linea + 8; while (*ptr == ' ' || *ptr == '\t') ptr++;
+    char nom[MAX_NOMBRE]; int j=0; while (*ptr && !isspace((unsigned char)*ptr) && j<MAX_NOMBRE-1) nom[j++] = *ptr++; nom[j]='\0';
+    int ld = ejecutar_salto_a_etiqueta(nom, linea_actual);
+    ctx->linea_num = (ld == -1) ? ctx->linea_num + 1 : ld;
+    return 0;
+}
+
+static int cmd_para(const char *linea, CtxBloque *ctx, int linea_actual) {
+    if (!strstr(linea, "HACER")) { ctx->linea_num++; return 0; }
+    const char *p = linea + 4; while(*p==' ') p++; int nivel=0;
+    if (*p=='{') { p++; nivel=atoi(p); while(*p&&*p!='}')p++; if(*p=='}')p++; }
+    while(*p==' ') p++;
+    if (*p!='(') { fprintf(stderr, "Error línea %d: PARA requiere paréntesis.\n", linea_actual); int fp=encontrar_fin_para(ctx->linea_num,nivel); ctx->linea_num=(fp!=-1)?fp+1:ctx->linea_num+1; return 0; }
+    p++; while(*p==' ') p++;
+    if (*p!='$') { fprintf(stderr, "Error línea %d: PARA requiere variable $var.\n", linea_actual); int fp=encontrar_fin_para(ctx->linea_num,nivel); ctx->linea_num=(fp!=-1)?fp+1:ctx->linea_num+1; return 0; }
+    p++; char vn[MAX_NOMBRE]=""; int j=0; while(es_alnum(*p)&&j<MAX_NOMBRE-1) vn[j++]=*p++; vn[j]='\0';
+    while(*p==' ') p++;
+    if (*p=='=') { p++; while(*p==' ') p++; int vi=0; if (*p=='$') { p++; char vi_n[MAX_NOMBRE]; j=0; while(es_alnum(*p)&&j<MAX_NOMBRE-1) vi_n[j++]=*p++; vi_n[j]='\0'; vi=get_var_valor_global(vi_n); } else { vi=atoi(p); while(*p&&(isdigit(*p)||*p=='-'))p++; } set_var_valor_global(vn, vi); }
+    const char *hp = strstr(linea, "HASTA"); if (!hp) { fprintf(stderr, "Error línea %d: PARA requiere HASTA.\n", linea_actual); int fp=encontrar_fin_para(ctx->linea_num,nivel); ctx->linea_num=(fp!=-1)?fp+1:ctx->linea_num+1; return 0; }
+    p = hp+6; while(*p==' ') p++; int fin=0; if (*p=='$') { p++; char vh[MAX_NOMBRE]; j=0; while(es_alnum(*p)&&j<MAX_NOMBRE-1) vh[j++]=*p++; vh[j]='\0'; fin=get_var_valor_global(vh); } else { fin=atoi(p); }
+    int paso=1; const char *pptr=strstr(linea, "PASO"); if (pptr) { p=pptr+4; while(*p==' ')p++; if (*p=='$') { p++; char vp[MAX_NOMBRE]; j=0; while(es_alnum(*p)&&j<MAX_NOMBRE-1) vp[j++]=*p++; vp[j]='\0'; paso=get_var_valor_global(vp); } else { paso=atoi(p); if (paso==0) paso=1; } }
+    int valor = get_var_valor_global(vn);
+    int dir_ok = !( (paso>0 && valor>fin) || (paso<0 && valor<fin) );
+    if (dir_ok && para_stack_ptr < MAX_NESTING) {
+        para_stack[para_stack_ptr].nivel=nivel; strncpy(para_stack[para_stack_ptr].var_nombre, vn, MAX_NOMBRE-1); para_stack[para_stack_ptr].var_nombre[MAX_NOMBRE-1]='\0';
+        para_stack[para_stack_ptr].fin=fin; para_stack[para_stack_ptr].paso=paso; para_stack[para_stack_ptr].linea_inicio=ctx->linea_num;
+        para_stack[para_stack_ptr].linea_fin=encontrar_fin_para(ctx->linea_num, nivel); para_stack_ptr++; ctx->linea_num++;
+    } else { int fp=encontrar_fin_para(ctx->linea_num, nivel); ctx->linea_num=(fp!=-1)?fp+1:ctx->linea_num+1; }
+    return 0;
+}
+
+static int cmd_realizar(const char *linea, CtxBloque *ctx, int linea_actual) {
+    int nivel=0; const char *p=linea+8; while(*p==' ')p++; if (*p=='{') { p++; nivel=atoi(p); while(*p&&*p!='}')p++; if (*p=='}')p++; }
+    int ya=0; for(int i=0;i<proceder_stack_ptr;i++) if (proceder_stack[i].nivel==nivel && proceder_stack[i].linea_inicio==ctx->linea_num) { ya=1; break; }
+    int fp=encontrar_fin_proceder(ctx->linea_num, nivel); if (fp==-1) { fprintf(stderr, "Error línea %d: REALIZAR sin MIENTRAS.\n", linea_actual); ctx->linea_num++; return 0; }
+    if (!ya && proceder_stack_ptr<MAX_NESTING) { proceder_stack[proceder_stack_ptr].linea_inicio=ctx->linea_num; proceder_stack[proceder_stack_ptr].linea_fin=fp; proceder_stack[proceder_stack_ptr].nivel=nivel; proceder_stack_ptr++; }
+    ctx->linea_num++; return 0;
+}
+
+static int cmd_mientras(const char *linea, CtxBloque *ctx, int linea_actual) {
+    if (strchr(linea, '(') && proceder_stack_ptr > 0) {
+        int nivel=0; const char *p=linea+8; while(*p==' ')p++; if (*p=='{') { p++; nivel=atoi(p); }
+        int exito, res; char cond[MAX_LINEA]="";
+        const char *pa=strchr(linea,'('), *pc=pa?strchr(pa+1,')'):NULL;
+        if (pa&&pc&&pc>pa) { int len=(int)(pc-pa-1); if(len>0&&len<MAX_LINEA-1){memcpy(cond,pa+1,len);cond[len]='\0';} }
+        char *ini=cond; while(*ini==' '||*ini=='\t')ini++; char *fin=ini+strlen(ini)-1; while(fin>ini&&(*fin==' '||*fin=='\t'||*fin=='\r')){*fin='\0';fin--;} if(ini!=cond)memmove(cond,ini,strlen(ini)+1);
+        char ce[MAX_LINEA+2]; ce[0]=' '; strcpy(ce+1,cond); res=evaluar_condicion(ce,&exito);
+        if (!exito) { fprintf(stderr, "Error línea %d.\n", linea_actual); }
+        if (exito && res) { for(int i=proceder_stack_ptr-1;i>=0;i--) if(proceder_stack[i].nivel==nivel){ctx->linea_num=proceder_stack[i].linea_inicio+1;break;} }
+        else { for(int i=proceder_stack_ptr-1;i>=0;i--) if(proceder_stack[i].nivel==nivel){ for(int j=i;j<proceder_stack_ptr-1;j++)proceder_stack[j]=proceder_stack[j+1]; proceder_stack_ptr--; break; } ctx->linea_num++; }
+        return 0;
+    }
+
+    if (strstr(linea, "HACER")) {
+        if (mientras_stack_ptr < MAX_NESTING) { mientras_stack[mientras_stack_ptr].linea_inicio=ctx->linea_num; mientras_stack[mientras_stack_ptr].linea_fin=encontrar_fin_mientras(ctx->linea_num,0); mientras_stack_ptr++; }
+        int exito=0,res=0; char cond[MAX_LINEA]="";
+        const char *pa=strchr(linea,'('), *pc=pa?strchr(pa+1,')'):NULL;
+        if (pa&&pc&&pc>pa) { int len=(int)(pc-pa-1); if(len>0&&len<MAX_LINEA-1){memcpy(cond,pa+1,len);cond[len]='\0';} }
+        limpiar_string(cond); char ce[MAX_LINEA+2]; ce[0]=' '; strcpy(ce+1,cond); res=evaluar_condicion(ce,&exito);
+        if (!exito) { fprintf(stderr, "Error línea %d: Condición inválida.\n", linea_actual); if(mientras_stack_ptr>0)mientras_stack_ptr--; int fin=encontrar_fin_mientras(ctx->linea_num,0); ctx->linea_num=(fin!=-1)?fin+1:ctx->linea_num+1; return 0; }
+        if (res) ctx->linea_num++; else { int fin=encontrar_fin_mientras(ctx->linea_num,0); ctx->linea_num=(fin!=-1)?fin+1:ctx->linea_num+1; if(mientras_stack_ptr>0)mientras_stack_ptr--; }
+        return 0;
+    }
+    ctx->linea_num++; return 0;
+}
+
+static int cmd_corte(const char *linea, CtxBloque *ctx, int linea_actual) {
+    (void)linea; int realizado=0;
+    if (segun_stack_ptr>0) { int fs=segun_stack[segun_stack_ptr-1].linea_fin; segun_stack_ptr--; if(fs!=-1){ctx->linea_num=fs+1;realizado=1;} }
+    if (!realizado && mientras_stack_ptr>0) { int fm=mientras_stack[mientras_stack_ptr-1].linea_fin; if(fm!=-1){ctx->linea_num=fm+1;mientras_stack_ptr--;realizado=1;} }
+    if (!realizado && para_stack_ptr>0) { para_stack_ptr--; int fp=para_stack[para_stack_ptr].linea_fin; if(fp!=-1){ctx->linea_num=fp+1;realizado=1;} }
+    if (!realizado && proceder_stack_ptr>0) { int fpr=proceder_stack[proceder_stack_ptr-1].linea_fin; proceder_stack_ptr--; if(fpr!=-1){ctx->linea_num=fpr+1;realizado=1;} }
+    if (!realizado && ctx->en_subprograma && sub_stack_ptr>0) {
+        int nivel=0; for(int b=ctx->linea_num+1;b<num_lineas_programa;b++) { char lb[MAX_LINEA]; strncpy(lb,lineas_programa[b],MAX_LINEA-1); lb[MAX_LINEA-1]='\0'; limpiar_string(lb); remover_comentario(lb);
+            if (comienza_con(lb,"FIN SUBPROGRAMA")) { if(nivel==0){ctx->linea_num=b;realizado=1;break;} nivel--; } else if (comienza_con(lb,"SUBPROGRAMA")) nivel++; }
+    }
+    if (!realizado) { fprintf(stderr, "Error línea %d: CORTE fuera de un bucle, SEGUN o SUBPROGRAMA.\nCORTE válido en: MIENTRAS, PARA, REALIZAR, SEGUN CASO, SUBPROGRAMA.\n", linea_actual); ctx->linea_num++; }
+    return 0;
+}
+
+static int cmd_configurar_pin(const char *linea, CtxBloque *ctx, int linea_actual) {
+    (void)linea_actual;
+    procesar_gpio_configurar(linea + 13);
+    ctx->linea_num++;
+    return 0;
+}
+
+static int cmd_estado_pin(const char *linea, CtxBloque *ctx, int linea_actual) {
+    (void)linea_actual;
+    procesar_gpio_estado_pin(linea + 9);
+    ctx->linea_num++;
+    return 0;
+}
+
+static int cmd_leer_pin(const char *linea, CtxBloque *ctx, int linea_actual) {
+    (void)linea_actual;
+    procesar_gpio_leer(linea + 7);
+    ctx->linea_num++;
+    return 0;
+}
+
 static int dispatch_command(const char *linea, CtxBloque *ctx, int linea_actual) {
     const char *ptr = linea;
     while (*ptr == ' ' || *ptr == '\t') ptr++;
@@ -1393,7 +1573,8 @@ static int dispatch_command(const char *linea, CtxBloque *ctx, int linea_actual)
 
 /* MOTOR GENÉRICO DE EJECUCIÓN */
 int ejecutar_bloque(CtxBloque *ctx) {
-    while (ctx->linea_num < num_lineas_programa) {
+    while (ctx->linea_num < num_lineas_programa && 
+      (ctx->linea_limite < 0 || ctx->linea_num <= ctx->linea_limite)) {   
         char linea[MAX_LINEA];
         strncpy(linea, lineas_programa[ctx->linea_num], MAX_LINEA - 1);
         linea[MAX_LINEA - 1] = '\0';
@@ -1473,124 +1654,6 @@ int ejecutar_bloque(CtxBloque *ctx) {
             continue;
         }
         
-        if (strncmp(linea, "FIN PARA", 8) == 0) {
-            if (para_stack_ptr > 0) {
-                ParaBloque *bloque = &para_stack[para_stack_ptr - 1];
-                int valor = get_var_valor_global(bloque->var_nombre);
-                valor += bloque->paso;
-                set_var_valor_global(bloque->var_nombre, valor);
-                int continuar = 0;
-                if (bloque->paso > 0) {
-                    if (valor <= bloque->fin) continuar = 1;
-                } else {
-                    if (valor >= bloque->fin) continuar = 1;
-                }
-                if (continuar) {
-                    ctx->linea_num = bloque->linea_inicio + 1;
-                } else {
-                    para_stack_ptr--;
-                    ctx->linea_num++;
-                }
-            } else {
-                fprintf(stderr, "Error línea %d: FIN PARA sin PARA.\n", linea_actual);
-                ctx->linea_num++;
-            }
-            continue;
-        }
-       
-        if (strncmp(linea, "FIN MIENTRAS", 12) == 0) {
-            int nivel = 0;
-            int linea_mientras = ctx->linea_num - 1;
-            int while_line = -1;
-    
-            while (linea_mientras >= 0) {
-                char linea_prev[MAX_LINEA];
-                strncpy(linea_prev, lineas_programa[linea_mientras], MAX_LINEA - 1);
-                linea_prev[MAX_LINEA - 1] = '\0';
-                limpiar_string(linea_prev);
-                remover_comentario(linea_prev);
-        
-                if (strncmp(linea_prev, "FIN MIENTRAS", 12) == 0) {
-                    nivel++;
-                }
-                else if (strncmp(linea_prev, "MIENTRAS", 8) == 0 && strstr(linea_prev, "HACER")) {
-                    if (nivel == 0) {
-                        while_line = linea_mientras;
-                        break;
-                    }
-                    nivel--;
-                }
-                linea_mientras--;
-            }
-            if (while_line != -1) {
-                int exito = 0;
-                int resultado = 0;
-                char condicion[MAX_LINEA] = "";
-                const char *src = lineas_programa[while_line];
-                
-                condicion[0] = '\0';
-                const char *p_abre = strchr(src, '(');
-                const char *p_cierra = p_abre ? strchr(p_abre + 1, ')') : NULL;
-                
-                if (p_abre && p_cierra && p_cierra > p_abre) {
-                    int len = (int)(p_cierra - p_abre - 1);
-                    if (len > 0 && len < MAX_LINEA - 1) {
-                        memcpy(condicion, p_abre + 1, len);
-                        condicion[len] = '\0';
-                    }
-                }
-                
-                char *inicio = condicion;
-                while (*inicio == ' ' || *inicio == '\t') inicio++;
-                char *fin = inicio + strlen(inicio) - 1;
-                while (fin > inicio && (*fin == ' ' || *fin == '\t' || *fin == '\r')) {
-                    *fin = '\0';
-                    fin--;
-                }
-                if (inicio != condicion) {
-                    memmove(condicion, inicio, strlen(inicio) + 1);
-                }
-                
-                char cond_eval[MAX_LINEA + 2];
-                cond_eval[0] = ' ';
-                strcpy(cond_eval + 1, condicion);
-                
-                resultado = evaluar_condicion(cond_eval, &exito);
-            
-                if (exito && resultado) {
-                    ctx->linea_num = while_line + 1;
-                } else {
-                    if (mientras_stack_ptr > 0) {
-                        mientras_stack_ptr--;
-                    }
-                    ctx->linea_num++;
-                }
-            } else {
-                if (mientras_stack_ptr > 0) {
-                    mientras_stack_ptr--;
-                }
-                ctx->linea_num++;
-            }
-            continue;    
-        }   
-        
-        if (comienza_con(linea, "SALTAR A")) {
-            const char *ptr = linea + 8;
-            while (*ptr == ' ' || *ptr == '\t') ptr++;
-            char nombre_etiqueta[MAX_NOMBRE];
-            int j = 0;
-            while (*ptr && !isspace((unsigned char)*ptr) && j < MAX_NOMBRE - 1)
-                nombre_etiqueta[j++] = *ptr++;
-            nombre_etiqueta[j] = '\0';
-            int linea_destino = ejecutar_salto_a_etiqueta(nombre_etiqueta, linea_actual);
-            if (linea_destino == -1) {
-                ctx->linea_num++;
-                continue;
-            }
-            ctx->linea_num = linea_destino;
-            continue;
-        }
-        
         if (*linea == '$' && strchr(linea, '=') != NULL) {
             if (!comienza_con(linea, "CALCULAR EN") && 
                 !comienza_con(linea, "RESULTADO EN") && 
@@ -1631,369 +1694,6 @@ int ejecutar_bloque(CtxBloque *ctx) {
             }
         }
 
-        if (strncmp(linea, "PARA", 4) == 0 && strstr(linea, "HACER")) {
-            char *p = linea + 4;
-            while(*p == ' ') p++;
-            int nivel = 0;
-            if (*p == '{') {
-                p++;
-                nivel = atoi(p);
-                while(*p && *p != '}') p++;
-                if (*p == '}') p++;
-            }
-            while(*p == ' ') p++;
-            if (*p != '(') {
-                fprintf(stderr, "Error línea %d: PARA requiere paréntesis: PARA ($var = 0 HASTA 10) HACER.\n", linea_actual);
-                int fp = encontrar_fin_para(ctx->linea_num, nivel);
-                if (fp != -1) ctx->linea_num = fp + 1;
-                else ctx->linea_num++;
-                continue;
-            }
-            p++;
-            while(*p == ' ') p++;
-            if (*p != '$') {
-                fprintf(stderr, "Error línea %d: PARA requiere variable $var.\n", linea_actual);
-                int fp = encontrar_fin_para(ctx->linea_num, nivel);
-                if (fp != -1) ctx->linea_num = fp + 1;
-                else ctx->linea_num++;
-                continue;
-            }
-            p++;
-            char var_nombre[MAX_NOMBRE] = "";
-            int j = 0;
-            while (es_alnum(*p) && j < MAX_NOMBRE-1)
-                var_nombre[j++] = *p++;
-            var_nombre[j] = '\0';
-            while(*p == ' ') p++;
-            if (*p == '=') {
-                p++;
-                while(*p == ' ') p++;
-                int valor_inicial = 0;
-                if (*p == '$') {
-                    p++;
-                    char var_ini[MAX_NOMBRE];
-                    j = 0;
-                    while (es_alnum(*p) && j < MAX_NOMBRE-1)
-                        var_ini[j++] = *p++;
-                    var_ini[j] = '\0';
-                    valor_inicial = get_var_valor_global(var_ini);
-                } else {
-                    valor_inicial = atoi(p);
-                    while (*p && (isdigit(*p) || *p == '-')) p++;
-                }
-                set_var_valor_global(var_nombre, valor_inicial);
-            }
-            char *hastaptr = strstr(linea, "HASTA");
-            if (!hastaptr) {
-                fprintf(stderr, "Error línea %d: PARA requiere HASTA.\n", linea_actual);
-                int fp = encontrar_fin_para(ctx->linea_num, nivel);
-                if (fp != -1) ctx->linea_num = fp + 1;
-                else ctx->linea_num++;
-                continue;
-            }
-            p = hastaptr + 6;
-            while(*p == ' ') p++;
-            int fin = 0;
-            if (*p == '$') {
-                p++;
-                char var_hasta[MAX_NOMBRE];
-                j = 0;
-                while (es_alnum(*p) && j < MAX_NOMBRE-1)
-                    var_hasta[j++] = *p++;
-                var_hasta[j] = '\0';
-                fin = get_var_valor_global(var_hasta);
-            } else {
-                fin = atoi(p);
-            }
-            int paso = 1;
-            char *pasoptr = strstr(linea, "PASO");
-            if (pasoptr) {
-                p = pasoptr + 4;
-                while(*p == ' ') p++;
-                if (*p == '$') {
-                    p++;
-                    char var_paso[MAX_NOMBRE];
-                    j = 0;
-                    while (es_alnum(*p) && j < MAX_NOMBRE-1) var_paso[j++] = *p++;
-                    var_paso[j] = '\0';
-                    paso = get_var_valor_global(var_paso);
-                } else {
-                    paso = atoi(p);
-                    if (paso == 0) paso = 1;
-                }
-            }
-            int valor = get_var_valor_global(var_nombre);
-            int direction_ok = 1;
-            if (paso > 0 && valor > fin) direction_ok = 0;
-            if (paso < 0 && valor < fin) direction_ok = 0;
-            if (direction_ok && para_stack_ptr < MAX_NESTING) {
-                para_stack[para_stack_ptr].nivel = nivel;
-                strncpy(para_stack[para_stack_ptr].var_nombre, var_nombre, MAX_NOMBRE-1);
-                para_stack[para_stack_ptr].var_nombre[MAX_NOMBRE-1] = '\0';
-                para_stack[para_stack_ptr].fin = fin;
-                para_stack[para_stack_ptr].paso = paso;
-                para_stack[para_stack_ptr].linea_inicio = ctx->linea_num;
-                para_stack[para_stack_ptr].linea_fin = encontrar_fin_para(ctx->linea_num, nivel);
-                para_stack_ptr++;
-                ctx->linea_num++;
-            } else {
-                int fp = encontrar_fin_para(ctx->linea_num, nivel);
-                if (fp != -1)
-                    ctx->linea_num = fp + 1;
-                else
-                    ctx->linea_num++;
-            }
-            continue;
-        }
-        
-        if (strncmp(linea, "REALIZAR", 8) == 0) {
-            int nivel = 0;
-            char *p = linea + 8;
-            while(*p == ' ') p++;
-            if (*p == '{') {
-                p++;
-                nivel = atoi(p);
-                while(*p && *p != '}') p++;
-                if (*p == '}') p++;
-            }
-            int ya_en_stack = 0;
-            for (int i = 0; i < proceder_stack_ptr; i++) {
-                if (proceder_stack[i].nivel == nivel && proceder_stack[i].linea_inicio == ctx->linea_num) {
-                    ya_en_stack = 1;
-                    break;
-                }
-            }
-            int fin_proceder = encontrar_fin_proceder(ctx->linea_num, nivel);
-            if (fin_proceder == -1) {
-                fprintf(stderr, "Error línea %d: REALIZAR sin MIENTRAS.\n", linea_actual);
-                ctx->linea_num++;
-                continue;
-            }
-            if (!ya_en_stack && proceder_stack_ptr < MAX_NESTING) {
-                proceder_stack[proceder_stack_ptr].linea_inicio = ctx->linea_num;
-                proceder_stack[proceder_stack_ptr].linea_fin = fin_proceder;
-                proceder_stack[proceder_stack_ptr].nivel = nivel;
-                proceder_stack_ptr++;
-            }
-            ctx->linea_num++;
-            continue;
-        }
-        
-        if (strncmp(linea, "MIENTRAS", 8) == 0 && strchr(linea, '(') && proceder_stack_ptr > 0) {
-            int nivel = 0;
-            char *p = linea + 8;
-            while(*p == ' ') p++;
-            if (*p == '{') {
-                p++;
-                nivel = atoi(p);
-            }
-
-            int exito, resultado;
-            char condicion[MAX_LINEA] = "";
-            
-            const char *p_abre = strchr(linea, '(');
-            const char *p_cierra = p_abre ? strchr(p_abre + 1, ')') : NULL;
-            
-            if (p_abre && p_cierra && p_cierra > p_abre) {
-                int len = (int)(p_cierra - p_abre - 1);
-                if (len > 0 && len < MAX_LINEA - 1) {
-                    memcpy(condicion, p_abre + 1, len);
-                    condicion[len] = '\0';
-                }
-            }
-            
-            char *inicio = condicion;
-            while (*inicio == ' ' || *inicio == '\t') inicio++;
-            char *fin = inicio + strlen(inicio) - 1;
-            while (fin > inicio && (*fin == ' ' || *fin == '\t' || *fin == '\r')) {
-                *fin = '\0';
-                fin--;
-            }
-            if (inicio != condicion) {
-                memmove(condicion, inicio, strlen(inicio) + 1);
-            }
-            
-            char cond_eval[MAX_LINEA + 2];
-            cond_eval[0] = ' ';
-            strcpy(cond_eval + 1, condicion);
-            
-            resultado = evaluar_condicion(cond_eval, &exito);
-            if (!exito) {
-                fprintf(stderr, "Error línea %d.\n", linea_actual);
-                for (int i = proceder_stack_ptr - 1; i >= 0; i--) {
-                    if (proceder_stack[i].nivel == nivel) {
-                        for (int j = i; j < proceder_stack_ptr - 1; j++)
-                            proceder_stack[j] = proceder_stack[j + 1];
-                        proceder_stack_ptr--;
-                        break;
-                    }
-                }
-                ctx->linea_num++;
-                continue;
-            }
-            if (resultado) {
-                for (int i = proceder_stack_ptr - 1; i >= 0; i--) {
-                    if (proceder_stack[i].nivel == nivel) {
-                        ctx->linea_num = proceder_stack[i].linea_inicio + 1;
-                        break;
-                    }
-                }
-            } else {
-                for (int i = proceder_stack_ptr - 1; i >= 0; i--) {
-                    if (proceder_stack[i].nivel == nivel) {
-                        for (int j = i; j < proceder_stack_ptr - 1; j++)
-                            proceder_stack[j] = proceder_stack[j + 1];
-                        proceder_stack_ptr--;
-                        break;
-                    }
-                }
-                ctx->linea_num++;
-            }
-            continue;
-        }
-        
-        if (comienza_con(linea, "MIENTRAS") == 0 && comienza_con(linea, "HACER")) {
-            if (mientras_stack_ptr < MAX_NESTING) {
-                mientras_stack[mientras_stack_ptr].linea_inicio = ctx->linea_num;
-                mientras_stack[mientras_stack_ptr].linea_fin = encontrar_fin_mientras(ctx->linea_num, 0);
-                mientras_stack_ptr++;
-            }
-
-            int exito = 0;
-            int resultado = 0;
-            char condicion[MAX_LINEA] = "";    
-            condicion[0] = '\0';
-            
-            const char *p_abre = strchr(linea, '(');
-            const char *p_cierra = p_abre ? strchr(p_abre + 1, ')') : NULL;
-            
-            if (p_abre && p_cierra && p_cierra > p_abre) {
-                int len = (int)(p_cierra - p_abre - 1);
-                if (len > 0 && len < MAX_LINEA - 1) {
-                    memcpy(condicion, p_abre + 1, len);
-                    condicion[len] = '\0'; 
-                }
-            }
-
-            limpiar_string(condicion);
-            char cond_eval[MAX_LINEA + 2];
-            cond_eval[0] = ' ';
-            strcpy(cond_eval + 1, condicion);
-            resultado = evaluar_condicion(cond_eval, &exito);
-            
-            if (!exito) {
-                fprintf(stderr, "Error línea %d: Condición inválida.\n", linea_actual);
-                if (mientras_stack_ptr > 0) mientras_stack_ptr--;
-                int fin = encontrar_fin_mientras(ctx->linea_num, 0);
-                if (fin != -1)
-                    ctx->linea_num = fin + 1;
-            	else
-                    ctx->linea_num++;
-                continue;
-            }
-    
-            if (resultado) {
-                ctx->linea_num++;
-            } else {
-                int fin = encontrar_fin_mientras(ctx->linea_num, 0);
-                if (fin != -1)
-                    ctx->linea_num = fin + 1;
-                else
-                    ctx->linea_num++;
-        
-                if (mientras_stack_ptr > 0) mientras_stack_ptr--;
-            }
-            continue;
-        }
-                
-        if (comienza_con(linea, "CORTE")) {
-            int realizado = 0;
-    
-            if (segun_stack_ptr > 0) {
-                int fin_segun = segun_stack[segun_stack_ptr - 1].linea_fin;
-                segun_stack_ptr--;
-                if (fin_segun != -1) {
-                    ctx->linea_num = fin_segun + 1;
-                    realizado = 1;
-                }
-            }
-    
-            if (!realizado && mientras_stack_ptr > 0) {
-                int fin_mientras = mientras_stack[mientras_stack_ptr - 1].linea_fin;
-                if (fin_mientras != -1) {
-                    ctx->linea_num = fin_mientras + 1;
-                    mientras_stack_ptr--;
-                    realizado = 1;
-                }
-            }
- 
-            if (!realizado && para_stack_ptr > 0) {
-                para_stack_ptr--;
-                int fin_para = para_stack[para_stack_ptr].linea_fin;
-                if (fin_para != -1) {
-                    ctx->linea_num = fin_para + 1;
-                    realizado = 1;
-                }
-            }
-    
-            if (!realizado && proceder_stack_ptr > 0) {
-                int fin_proceder = proceder_stack[proceder_stack_ptr - 1].linea_fin;
-                proceder_stack_ptr--;
-                if (fin_proceder != -1) {
-                    ctx->linea_num = fin_proceder + 1;
-                    realizado = 1;
-                }
-            }
-    
-            if (!realizado && ctx->en_subprograma && sub_stack_ptr > 0) {
-                int nivel = 0;
-                for (int b = ctx->linea_num + 1; b < num_lineas_programa; b++) {
-                    char lb[MAX_LINEA];
-                    strncpy(lb, lineas_programa[b], MAX_LINEA - 1);
-                    lb[MAX_LINEA - 1] = '\0';
-                    limpiar_string(lb);
-                    remover_comentario(lb);
-            
-                    if (comienza_con(lb, "FIN SUBPROGRAMA")) {
-                        if (nivel == 0) {
-                            ctx->linea_num = b;
-                            realizado = 1;
-                            break;
-                        }
-                        nivel--;
-                    }
-                    else if (comienza_con(lb, "SUBPROGRAMA")) {
-                        nivel++;
-                }
-            }
-        }
-    
-        if (!realizado) {
-            fprintf(stderr, "Error línea %d: CORTE fuera de un bucle, SEGUN o SUBPROGRAMA.\n", linea_actual);
-            fprintf(stderr, "CORTE válido en: MIENTRAS, PARA, REALIZAR, SEGUN CASO, SUBPROGRAMA.\n");
-            ctx->linea_num++;
-        }   
-        continue;
-        }
-        
-        if (comienza_con(linea, "CONFIGURARPIN")) {
-            procesar_gpio_configurar(linea + 13);
-            ctx->linea_num++;
-            continue;
-        }
-        
-        if (comienza_con(linea, "ESTADOPIN")) {
-            procesar_gpio_estado_pin(linea + 9);
-            ctx->linea_num++;
-            continue;
-        }
-        
-        if (comienza_con(linea, "LEERPIN")) {
-            procesar_gpio_leer(linea + 7);
-            ctx->linea_num++;
-            continue;
-        }
-        
         if (comienza_con(linea, "ESCRIBIR") || comienza_con(linea, "MOSTRAR")) {
             char *texto;
             if (comienza_con(linea, "ESCRIBIR")) {
@@ -2117,18 +1817,40 @@ int ejecutar_bloque(CtxBloque *ctx) {
             ctx->linea_num++;
             continue;
         }
-        
+     
         if (comienza_con(linea, "SISTEMA")) {
-            char *argumento = linea + 7;
-            while (*argumento == ' ' || *argumento == '\t') argumento++;
-            procesar_sistema(argumento);
-            ctx->linea_num++;
-            continue;
+            const char *p = linea + 7; 
+            while (*p == ' ' || *p == '\t' || *p == '(') p++;
+    
+            const char *fin = strchr(p, ')');
+            if (!fin) fin = p + strlen(p);
+    
+            char cmd[MAX_LINEA];
+            int len = fin - p;
+            if (len > 0 && len < MAX_LINEA - 1) {
+                strncpy(cmd, p, len);
+                cmd[len] = '\0';
+        
+                char *start = cmd;
+                char *end = start + strlen(start) - 1;
+                if (strlen(start) >= 2 && 
+                    ((start[0] == '"' && *end == '"') || 
+                    (start[0] == '\'' && *end == '\''))) {
+                        start++;
+                        *end = '\0';
+                }
+        
+                while (strlen(start) > 0 && start[strlen(start)-1] == ' ') 
+                start[strlen(start)-1] = '\0';
+        
+                if (strlen(start) > 0) procesar_sistema(start);
+            }
+            ctx->linea_num++; continue;
         }
         
         ctx->linea_num++;
     }
-    return error_fatal ? -1 : 0;
+    return error_fatal ? -1 : 0; 
 }    
 
 

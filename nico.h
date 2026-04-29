@@ -686,4 +686,22 @@ int ejecutar_comando_cadena(const char *nombre_cmd, char *args[], int num_args);
 /* Validador de nombres */
 int es_funcion_cadena_valida(const char *nombre);
 
+/* === TIPOS COMPARTIDOS PARA MOTOR UNIFICADO === */
+typedef struct {
+    int linea_num;
+    int linea_limite;       // -1 = sin límite, >=0 = detenerse aquí
+    int inicio_encontrado;
+    char nombre_programa[MAX_NOMBRE];
+    int declaraciones_permitidas;
+    int en_bloque_principal;
+    int en_subprograma;
+    int en_funcion;
+    int fase_declaraciones;
+    int error_fatal;
+} CtxBloque;
+
+/* Forward declaration del motor de ejecución */
+int ejecutar_bloque(CtxBloque *ctx);
+/* =========================================== */
+
 #endif

@@ -300,7 +300,7 @@ double ejecutar_funcion_cadena(const char *nombre_func, char *args[], int num_ar
 }
 
 int ejecutar_comando_cadena(const char *nombre_cmd, char *args[], int num_args) {
-    if (strcmp(nombre_cmd, "COPIARTEXTO") == 0 && num_args == 2) {
+    /*if (strcmp(nombre_cmd, "COPIARTEXTO") == 0 && num_args == 2) {
         char destino_nombre[MAX_NOMBRE], origen_buf[MAX_TEXTO_LEN];
         limpiar_nombre(args[0], destino_nombre, MAX_NOMBRE);
         if (!obtener_texto_para_cadena(args[1], origen_buf, MAX_TEXTO_LEN)) return -1;
@@ -308,6 +308,36 @@ int ejecutar_comando_cadena(const char *nombre_cmd, char *args[], int num_args) 
         int idx = buscar_texto_var(destino_nombre);
         if (idx < 0) return -1;
         return nico_copiar_texto(texto_vars[idx].valor, origen_buf, MAX_TEXTO_LEN);
+    }*/
+
+    if (strcmp(nombre_cmd, "COPIARTEXTO") == 0 && num_args == 2) {
+        char destino_nombre[MAX_NOMBRE], origen_buf[MAX_TEXTO_LEN];
+        limpiar_nombre(args[0], destino_nombre, MAX_NOMBRE);
+        if (!obtener_texto_para_cadena(args[1], origen_buf, MAX_TEXTO_LEN)) return -1;
+        
+        int idx = buscar_texto_var(destino_nombre);
+        if (idx >= 0) {
+            nico_copiar_texto(texto_vars[idx].valor, origen_buf, MAX_TEXTO_LEN);
+            return 0;
+        }
+        // 🔗 FALLBACK LOCAL (mapeo a pool)
+        if (scope_actual >= 0) {
+            int idx_pool = -1;
+            for (int s = scope_actual; s >= 0; s--) {
+                for (int v = 0; v < scopes_locales[s].num_textos; v++) {
+                    if (strcmp(scopes_locales[s].nombres_textos[v], destino_nombre) == 0) {
+                        idx_pool = scopes_locales[s].indices_textos[v];
+                        break;
+                    }
+                }
+                if (idx_pool != -1) break;
+            }
+            if (idx_pool != -1) {
+                nico_copiar_texto(texto_vars[idx_pool].valor, origen_buf, MAX_TEXTO_LEN);
+                return 0;
+            }
+        }
+        return -1;
     }
     else if (strcmp(nombre_cmd, "CONCATENARTEXTO") == 0 && num_args == 2) {
         char destino_nombre[MAX_NOMBRE], origen_buf[MAX_TEXTO_LEN];
@@ -318,13 +348,42 @@ int ejecutar_comando_cadena(const char *nombre_cmd, char *args[], int num_args) 
         if (idx < 0) return -1;
         return nico_concatenar_texto(texto_vars[idx].valor, origen_buf, MAX_TEXTO_LEN);
     }
-    else if (strcmp(nombre_cmd, "MAYUSCULAS") == 0 && num_args == 1) {
+    /*else if (strcmp(nombre_cmd, "MAYUSCULAS") == 0 && num_args == 1) {
         char nombre[MAX_NOMBRE];
         limpiar_nombre(args[0], nombre, MAX_NOMBRE);
         int idx = buscar_texto_var(nombre);
         if (idx < 0) return -1;
         return nico_a_mayusculas(texto_vars[idx].valor);
+    }*/
+
+    else if (strcmp(nombre_cmd, "MAYUSCULAS") == 0 && num_args == 1) {
+        char nombre[MAX_NOMBRE];
+        limpiar_nombre(args[0], nombre, MAX_NOMBRE);
+        
+        int idx = buscar_texto_var(nombre);
+        if (idx >= 0) {
+            nico_a_mayusculas(texto_vars[idx].valor);
+            return 0;
+        }
+        if (scope_actual >= 0) {
+            int idx_pool = -1;
+            for (int s = scope_actual; s >= 0; s--) {
+                for (int v = 0; v < scopes_locales[s].num_textos; v++) {
+                    if (strcmp(scopes_locales[s].nombres_textos[v], nombre) == 0) {
+                        idx_pool = scopes_locales[s].indices_textos[v];
+                        break;
+                    }
+                }
+                if (idx_pool != -1) break;
+            }
+            if (idx_pool != -1) {
+                nico_a_mayusculas(texto_vars[idx_pool].valor);
+                return 0;
+            }
+        }
+        return -1;
     }
+
     else if (strcmp(nombre_cmd, "MINUSCULAS") == 0 && num_args == 1) {
         char nombre[MAX_NOMBRE];
         limpiar_nombre(args[0], nombre, MAX_NOMBRE);
