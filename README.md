@@ -98,28 +98,29 @@ Longitud máxima de línea: MAX_LINEA chars. Parseo seguro con limpiar_string()
 ## 📁 Estructura del Proyecto
 
 nico-v1.0.1/
-├── nico.h                  # Cabecera central (estructuras, límites, prototipos)
-├── main.c                  # Punto de entrada, REPL, flag -e, carga de archivos
-├── leertecla.c             # 🆕 Comando nativo LEERTECLA: input no-bloqueante con decodificación ANSI
-├── expressions.c           # Evaluador de expresiones, lógica Y/O, funciones built-in
-├── funciones.c             # Gestión de funciones, scopes, parámetros, retorno
-├── io.c                    # E/S estándar, teclado no-bloqueante, terminal
-├── flow.c                  # Control de flujo: bucles, saltos, resolución de etiquetas
-├── validador.c             # Validación estática pre-ejecución
-├── declaraciones.c         # Parsing de variables, constantes, listas y matrices
-├── etiquetas.c             # Registro y gestión de ETIQUETAS y SUBPROGRAMAS
-├── cadenas.c               # Motor de manipulación de cadenas y funciones de texto nativas
-├── variables.c             # Gestión centralizada de variables globales/locales y tipos
-├── nico_bits.c / .h        # Operaciones bitwise y rotación de bits
-├── nico_gpio.c / .h        # GPIO nativo Raspberry Pi
-├── nico_gpio_stub.c        # Stub seguro para Windows/Linux sin hardware
-├── win_compat.h            # Capa de compatibilidad para compilación en Windows
-├── compile.sh              # Script de compilación Linux/Raspberry Pi
-├── compile_windows.bat     # Script de compilación Windows (MinGW-w64)
-├── LICENSE                 # Licencia MIT
-├── README.md               # Documentación principal
-├── CHANGELOG.md            # Historial de versiones y fixes
-├── .gitignore              # Reglas de exclusión para Git
+├── nico.h                  # Cabecera central (estructuras, límites, prototipos).
+├── main.c                  # Punto de entrada, REPL, flag -e, carga de archivos.
+├── scopes.c                # Gestión de memoria y alcances (scopes). 
+├── leertecla.c             # 🆕 Comando nativo LEERTECLA: input no-bloqueante con decodificación ANSI.
+├── expressions.c           # Evaluador de expresiones, lógica Y/O, funciones built-in.
+├── funciones.c             # Gestión de funciones, scopes, parámetros, retorno.
+├── io.c                    # E/S estándar, teclado no-bloqueante, terminal.
+├── flow.c                  # Control de flujo: bucles, saltos, resolución de etiquetas.
+├── validador.c             # Validación estática pre-ejecución.
+├── declaraciones.c         # Parsing de variables, constantes, listas y matrices.
+├── etiquetas.c             # Registro y gestión de ETIQUETAS y SUBPROGRAMAS.
+├── cadenas.c               # Motor de manipulación de cadenas y funciones de texto nativas.
+├── variables.c             # Gestión centralizada de variables globales/locales y tipos.
+├── nico_bits.c / .h        # Operaciones bitwise y rotación de bits.
+├── nico_gpio.c / .h        # GPIO nativo Raspberry Pi.
+├── nico_gpio_stub.c        # Stub seguro para Windows/Linux sin hardware.
+├── win_compat.h            # Capa de compatibilidad para compilación en Windows.
+├── compile.sh              # Script de compilación Linux/Raspberry Pi.
+├── compile_windows.bat     # Script de compilación Windows (MinGW-w64).
+├── LICENSE                 # Licencia MIT.
+├── README.md               # Documentación principal.
+├── CHANGELOG.md            # Historial de versiones y fixes.
+├── .gitignore              # Reglas de exclusión para Git.
 └── ejemplos/
     ├── 01_hola_mundo.nico
     ├── 02_condicionales_y_bucles.nico
