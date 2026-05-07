@@ -5,6 +5,7 @@ PROGRAMA TestOperadorModulo
     VARIABLE ENTERA $resultado = 0
 
 BLOQUE PRINCIPAL
+    ESCRIBIR("") SALTO
     ESCRIBIR("$txtarriba") SALTO
     
     CALCULAR EN $resultado = 48 % 18
@@ -19,7 +20,7 @@ BLOQUE PRINCIPAL
     CALCULAR EN $resultado = 100 % 10
     ESCRIBIR("100 % 10 = $resultado (esperado: 0)") SALTO
     
-    ESCRIBIR ("$txtabajo") SALTO
+    ESCRIBIR ("$txtabajo\n") SALTO
 
 FIN PRINCIPAL
 FINAL

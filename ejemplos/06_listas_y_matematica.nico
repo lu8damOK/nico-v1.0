@@ -13,7 +13,8 @@ BLOQUE PRINCIPAL
         CALCULAR EN $suma = $suma + $datos[$i]
         CALCULAR EN $i = $i + 1
     FIN MIENTRAS
-
+    
+    ESCRIBIR("") SALTO
     ESCRIBIR("Contenido de la lista:") SALTO
     ASIGNAR EN $i = 0
     MIENTRAS ($i MENOR 5) HACER
@@ -26,9 +27,9 @@ BLOQUE PRINCIPAL
     ESCRIBIR("$suma") SALTO
     CALCULAR EN $promedio = $suma / 5.0
     ESCRIBIR("Promedio: ")
-    ESCRIBIR("$promedio") SALTO
+    ESCRIBIR("$promedio", DECIMALES(2)) SALTO
     ASIGNAR EN $raiz = RAIZ($suma)
     ESCRIBIR("Raíz de la suma: ") 
-    ESCRIBIR("$raiz") SALTO
+    ESCRIBIR("$raiz\n", DECIMALES(2)) SALTO
 FIN PRINCIPAL
 FINAL

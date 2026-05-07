@@ -3,6 +3,7 @@ PROGRAMA TestGPIO
 VARIABLE ENTERA $contador = 0
 
 BLOQUE PRINCIPAL
+    ESCRIBIR("") SALTO
     ESCRIBIR ("Probando comandos GPIO...") SALTO
     
     CONFIGURARPIN(17, SALIDA)
@@ -15,6 +16,6 @@ BLOQUE PRINCIPAL
         ESPERAR(250, MILISEGUNDOS)
         CALCULAR EN $contador = $contador + 1  
     MIENTRAS ($contador MENOR 20)   
-ESCRIBIR("Test completado ✓") SALTO
+ESCRIBIR("Test completado ✓\n") SALTO
 FIN PRINCIPAL
 FINAL

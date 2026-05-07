@@ -1,5 +1,5 @@
 /*
- * Nico v1.0 - Intérprete Educativo de Scripting en Español
+ * Nico v1.0.1 - Intérprete Educativo de Scripting en Español
  * @file:         nico_gpio_stub.c
  * @author:       Diego Alejandro Majluff (Diseño, Arquitectura y Supervisión)
  * @ai_assist:    Qwen (Alibaba Cloud) - Implementación, Debugging y Optimización

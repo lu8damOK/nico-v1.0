@@ -4,6 +4,7 @@ PROGRAMA TestSaltarControlado
     VARIABLE ENTERA $limite = 10
 
 BLOQUE PRINCIPAL
+    ESCRIBIR("") SALTO
     ETIQUETA inicio
 
     MOSTRAR ("Iteración: $contador") SALTO
@@ -14,5 +15,6 @@ BLOQUE PRINCIPAL
     FIN SI
 
     MOSTRAR ("Fin del bucle.") SALTO
+    ESCRIBIR("") SALTO
 FIN PRINCIPAL
 FINAL

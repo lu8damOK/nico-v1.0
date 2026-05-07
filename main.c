@@ -1,25 +1,27 @@
 /*
- * Nico v1.0 - Intérprete Educativo de Scripting en Español
+ * Nico v1.0.1 - Intérprete Educativo de Scripting en Español
  * @file:         main.c
  * @author:       Diego Alejandro Majluff (Diseño, Arquitectura y Supervisión)
  * @ai_assist:    Qwen (Alibaba Cloud) - Implementación, Debugging y Optimización
  * @license:      MIT / Personal Use (ver LICENSE)
- * @description:  Punto de entrada, carga de archivos, bucle principal de 
- *                ejecución, gestión de pilas de bloques y modo interactivo.
+ * @description:  Punto de entrada y orquestación del intérprete. Gestiona la CLI,
+ *                carga de programas, inicialización de la tabla de comandos y
+ *                coordinación entre módulos.
  */
 #include "nico.h"
 #include "nico_gpio.h"
 #include <unistd.h>
 #include <limits.h>
 #include <float.h>
+#include <signal.h>
+#include <stdlib.h>
 
-/* === TABLA DE DESPACHO DE COMANDOS === */
+#ifdef _WIN32
+    #include <windows.h> 
+#endif
+
+// TABLA DE DESPACHO DE COMANDOS
 typedef int (*CmdHandler)(const char *linea, CtxBloque *ctx, int linea_actual);
-
-/*typedef struct {
-    const char *keyword;
-    CmdHandler handler;
-} CmdEntry;*/
 
 // Handlers forward declarations
 int cmd_resettexto(const char *linea, CtxBloque *ctx, int linea_actual);
@@ -37,6 +39,7 @@ int cmd_asignar(const char *linea, CtxBloque *ctx, int linea_actual);
 int cmd_var_entera(const char *linea, CtxBloque *ctx, int linea_actual);
 int cmd_var_decimal(const char *linea, CtxBloque *ctx, int linea_actual);
 int cmd_var_texto(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_var_texto_extenso(const char *linea, CtxBloque *ctx, int linea_actual);
 int cmd_var_caracter(const char *linea, CtxBloque *ctx, int linea_actual);
 int cmd_var_entera_sin(const char *linea, CtxBloque *ctx, int linea_actual);
 int cmd_var_decimal_sin(const char *linea, CtxBloque *ctx, int linea_actual);
@@ -83,99 +86,10 @@ int cmd_corte(const char *linea, CtxBloque *ctx, int linea_actual);
 int cmd_configurar_pin(const char *linea, CtxBloque *ctx, int linea_actual);
 int cmd_estado_pin(const char *linea, CtxBloque *ctx, int linea_actual);
 int cmd_leer_pin(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_hora_actual(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_fecha_actual(const char *linea, CtxBloque *ctx, int linea_actual);
 
-/*static const CmdEntry dispatch_table[] = {
-    { "RESETTEXTO",          cmd_resettexto          },
-    { "RESETCOLOR",          cmd_resetcolor          },
-    { "LIMPIARPANTALLA",     cmd_limpiarpantalla     },
-    { "ESCRIBIR",            cmd_escribir            },
-    { "MOSTRAR",             cmd_escribir            }, 
-    { "COLORTEXTO",          cmd_colortexto          },
-    { "COLORFONDO",          cmd_colorfondo          },
-    { "TEXTONEGRITA",        cmd_textonegrita        },
-    { "TEXTOCURSIVA",        cmd_textocursiva        },
-    { "TEXTOSUBRAYADO",      cmd_textosubrayado      },
-    { "CALCULAR EN",         cmd_calcular            },
-    { "RESULTADO EN",        cmd_resultado           },
-    { "ASIGNAR EN",          cmd_asignar             },
-    { "VARIABLE ENTERA SIN SIGNO",  cmd_var_entera_sin   },
-    { "VARIABLE DECIMAL SIN SIGNO", cmd_var_decimal_sin  },
-    { "VARIABLE CARACTER SIN SIGNO",cmd_var_caracter_sin },
-    { "VARIABLE ENTERA",         cmd_var_entera        },
-    { "VARIABLE DECIMAL",        cmd_var_decimal       },
-    { "VARIABLE TEXTO",          cmd_var_texto         },
-    { "VARIABLE CARACTER",       cmd_var_caracter      },
-    { "DECLARAR VARIABLE ENTERA",            cmd_var_entera        },
-    { "DECLARAR VARIABLE DECIMAL",           cmd_var_decimal       },
-    { "DECLARAR VARIABLE TEXTO",             cmd_var_texto         },
-    { "DECLARAR VARIABLE CARACTER",          cmd_var_caracter      },
-    { "DECLARAR VARIABLE ENTERA SIN SIGNO",  cmd_var_entera_sin    },
-    { "DECLARAR VARIABLE DECIMAL SIN SIGNO", cmd_var_decimal_sin   },
-    { "DECLARAR VARIABLE CARACTER SIN SIGNO",cmd_var_caracter_sin  },
-    { "CONSTANTE ENTERA SIN SIGNO",   cmd_constante_entera_sin          },
-    { "DECLARAR CONSTANTE ENTERA SIN SIGNO", cmd_constante_entera_sin   },
-    { "CONSTANTE DECIMAL SIN SIGNO",  cmd_constante_decimal_sin },
-    { "DECLARAR CONSTANTE DECIMAL SIN SIGNO", cmd_constante_decimal_sin },
-    { "CONSTANTE ENTERA",             cmd_constante_entera              },
-    { "DECLARAR CONSTANTE ENTERA",    cmd_constante_entera              },
-    { "CONSTANTE DECIMAL",            cmd_constante_decimal             },
-    { "DECLARAR CONSTANTE DECIMAL",   cmd_constante_decimal             },
-    { "CONSTANTE TEXTO",              cmd_constante_texto               },
-    { "DECLARAR CONSTANTE TEXTO",     cmd_constante_texto               },
-    { "LLAMAR A",                     cmd_llamar_a                      },
-    { "SUBPROGRAMA",       cmd_subprograma       },
-    { "FIN SUBPROGRAMA",   cmd_fin_subprograma   },
-    { "SINO SI",           cmd_sino_si         },
-    { "SINO",              cmd_sino            },
-    { "SI",                cmd_si              },
-    { "FIN SI",            cmd_fin_si          },
-    { "SEGUN CASO",      cmd_segun_caso      },
-    { "POR DEFECTO",     cmd_por_defecto     },
-    { "FIN SEGUN",       cmd_fin_segun       },
-    { "CASO",            cmd_caso            },
-    { "FIN FUNCION",       cmd_fin_funcion       },
-    { "FUNCION",           cmd_funcion           },
-    { "RETORNAR",          cmd_retornar          },
-    { "LISTA ENTERA SIN SIGNO",      cmd_lista_entera_sin     },
-    { "DECLARAR LISTA ENTERA SIN SIGNO", cmd_lista_entera_sin },
-    { "LISTA DECIMAL SIN SIGNO",     cmd_lista_decimal_sin    },
-    { "DECLARAR LISTA DECIMAL SIN SIGNO", cmd_lista_decimal_sin },
-    { "LISTA CARACTER SIN SIGNO",    cmd_lista_caracter_sin   },
-    { "DECLARAR LISTA CARACTER SIN SIGNO", cmd_lista_caracter_sin },
-    { "LISTA ENTERA",                cmd_lista_entera         },
-    { "DECLARAR LISTA ENTERA",       cmd_lista_entera         },
-    { "LISTA DECIMAL",               cmd_lista_decimal        },
-    { "DECLARAR LISTA DECIMAL",      cmd_lista_decimal        },
-    { "LISTA CARACTER",              cmd_lista_caracter       },
-    { "DECLARAR LISTA CARACTER",     cmd_lista_caracter       },
-    { "MATRIZ ENTERA SIN SIGNO",     cmd_matriz_entera_sin    },
-    { "DECLARAR MATRIZ ENTERA SIN SIGNO", cmd_matriz_entera_sin },
-    { "MATRIZ DECIMAL SIN SIGNO",    cmd_matriz_decimal_sin   },
-    { "DECLARAR MATRIZ DECIMAL SIN SIGNO", cmd_matriz_decimal_sin },
-    { "MATRIZ CARACTER SIN SIGNO",   cmd_matriz_caracter_sin  },
-    { "DECLARAR MATRIZ CARACTER SIN SIGNO", cmd_matriz_caracter_sin },
-    { "MATRIZ ENTERA",               cmd_matriz_entera        },
-    { "DECLARAR MATRIZ ENTERA",      cmd_matriz_entera        },
-    { "MATRIZ DECIMAL",              cmd_matriz_decimal       },
-    { "DECLARAR MATRIZ DECIMAL",     cmd_matriz_decimal       },
-    { "MATRIZ CARACTER",             cmd_matriz_caracter      },
-    { "DECLARAR MATRIZ CARACTER",    cmd_matriz_caracter      },
-    { "VARIABLE ARCHIVO",            cmd_var_archivo          },
-    { "DECLARAR VARIABLE ARCHIVO",   cmd_var_archivo          },
-    { "FIN MIENTRAS",      cmd_fin_mientras      },
-    { "FIN PARA",          cmd_fin_para          },
-    { "MIENTRAS",          cmd_mientras          },
-    { "REALIZAR",          cmd_realizar          },
-    { "PARA",              cmd_para              },
-    { "SALTAR A",          cmd_saltar_a          },
-    { "CORTE",             cmd_corte             },
-    { "CONFIGURARPIN",     cmd_configurar_pin      },
-    { "ESTADOPIN",         cmd_estado_pin          },
-    { "LEERPIN",           cmd_leer_pin            },
-    { NULL, NULL }
-};*/
-
-/* DECLARACIONES FORWARD */
+// DECLARACIONES FORWARD
 int modo_estricto = 1;
 
 void procesar_textonegrita(const char *argumento);
@@ -193,12 +107,12 @@ int ejecutar_salto_a_etiqueta(const char *nombre, int linea_actual);
 int get_var_valor_global(const char *nombre);
 void set_var_valor_global(const char *nombre, int valor);
 
-/* GPIO Raspberry Pi */
+// GPIO Raspberry Pi
 void procesar_gpio_configurar(const char *argumento);
 void procesar_gpio_estado_pin(const char *argumento);
 void procesar_gpio_leer(const char *argumento);
 
-/* VARIABLES GLOBALES */
+// VARIABLES GLOBALES
 char lineas_programa[MAX_LINEAS_PROGRAMA][MAX_LINEA];
 int num_lineas_programa = 0;
 
@@ -234,7 +148,7 @@ char funcion_variable_destino[MAX_NOMBRE] = "";
 char funcion_destino_stack[MAX_NESTING][MAX_NOMBRE];
 int funcion_destino_stack_ptr = 0;
 
-/* FUNCIONES AUXILIARES */
+// FUNCIONES AUXILIARES
 void limpiar_memoria_completa(void) {
     num_variables = 0;
     num_variables_sin_signo = 0;
@@ -306,7 +220,7 @@ void comando_ayuda(void) {
 
 void comando_rangos(void) {
     fprintf(stderr, "\n");
-    fprintf(stderr, "   RANGOS DE VARIABLES - NICO v1.0\n");
+    fprintf(stderr, "   RANGOS DE VARIABLES - NICO v1.0.1\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "   VARIABLES ENTERAS:\n");
     fprintf(stderr, "     Rango: %d a %d\n", INT_MIN, INT_MAX);
@@ -321,7 +235,7 @@ void comando_rangos(void) {
     fprintf(stderr, "     Máximo: %d vars\n", MAX_VARS_DECIMAL);
     fprintf(stderr, "\n");
     fprintf(stderr, "   VARIABLES DECIMALES SIN SIGNO:\n");
-    fprintf(stderr, "     Rango: 0.0 a %e\n", DBL_MAX);
+    fprintf(stderr, "     Rango: 0.0 a %e (mismo tipo que DECIMAL, solo valores ≥ 0)\n", DBL_MAX);
     fprintf(stderr, "     Máximo: %d vars\n", MAX_VARS_DECIMAL_SIN_SIGNO);
     fprintf(stderr, "\n");
     fprintf(stderr, "   VARIABLES CARACTER:\n");
@@ -335,6 +249,11 @@ void comando_rangos(void) {
     fprintf(stderr, "   VARIABLES TEXTO:\n");
     fprintf(stderr, "     Máximo: %d caracteres por variable\n", MAX_TEXTO_LEN - 1);
     fprintf(stderr, "     Máximo: %d vars\n", MAX_VARS_TEXTO);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "   VARIABLES TEXTO EXTENSO:\n");
+    fprintf(stderr, "     Largo: Dinámico (limitado por RAM disponible)\n");
+    fprintf(stderr, "     Máximo: %d vars (globales)\n", MAX_TEXTOS_EXT_GLOBALES);
+    fprintf(stderr, "     Alcance: Solo global (no válido en bloques locales)\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "   CONSTANTES (todos los tipos):\n");
     fprintf(stderr, "     Máximo: %d constantes\n", MAX_CONSTANTES);
@@ -350,7 +269,7 @@ void comando_rangos(void) {
     fprintf(stderr, "\n");
     fprintf(stderr, "   ARCHIVOS:\n");
     fprintf(stderr, "     Máximo: %d archivos simultáneos\n", MAX_VARS_ARCHIVO);
-    fprintf(stderr, "     Modos: 0=Escritura, 1=Append, 2=Lectura, 3=L+E\n");
+    fprintf(stderr, "     Modos: 0=ESCRITURA, 1=AGREGAR, 2=LECTURA, 3=LECTOESCRITURA\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "   FUNCIONES:\n");
     fprintf(stderr, "     Máximo: %d niveles de anidamiento\n", MAX_NESTING);
@@ -441,7 +360,7 @@ int cargar_archivo_en_memoria(const char *nombre_archivo) {
     return 0;
 }
 
-/* EJECUTAR LLAMADA A FUNCION */
+// EJECUTAR LLAMADA A FUNCION
 int ejecutar_llamada_funcion(const char *linea, int linea_actual, int linea_num) {
     char *igual = strchr(linea, '=');
     if (!igual) return -1;
@@ -580,7 +499,7 @@ int ejecutar_llamada_funcion(const char *linea, int linea_actual, int linea_num)
     return linea_num + 1;
 }
 
-/* ASIGNAR VALOR DE RETORNO DE FUNCION */
+// ASIGNAR VALOR DE RETORNO DE FUNCION
 void asignar_valor_retorno_funcion(void) {
     if (funcion_variable_destino[0] == '\0') return;
     if (!hay_valor_retorno) return;
@@ -627,7 +546,7 @@ void asignar_valor_retorno_funcion(void) {
     agregar_variable_decimal(nombre, valor_retorno_funcion);
 }
 
-/* EJECUTAR PROGRAMA CARGADO */
+// EJECUTAR PROGRAMA CARGADO
 int ejecutar_programa_cargado(void) {
     inicializar_semilla_aleatoria();
     scope_actual = -1;
@@ -716,9 +635,8 @@ int ejecutar_programa_cargado(void) {
     en_funcion = 0;
     cerrar_todos_los_archivos();
     fprintf(stderr, "> Programa '%s' finalizado.\n", ctx.nombre_programa);
+    restaurar_terminal_completa();
     limpiar_memoria_completa();
-
-    
     return 0;
 }
 
@@ -751,22 +669,41 @@ int cmd_limpiarpantalla(const char *linea, CtxBloque *ctx, int linea_actual) {
     procesar_limpiarpantalla(); ctx->linea_num++; return 0;
 }
 
+static int extraer_arg_escribir(const char *linea, char *dest, size_t max_dest) {
+    const char *abre = strchr(linea, '(');
+    const char *cierra = strrchr(linea, ')');
+    if (!abre || !cierra || cierra <= abre) return -1;
+
+    const char *p = abre + 1;
+    size_t j = 0;
+    
+    if (*p == '"') p++;
+
+    while (p < cierra && j < max_dest - 1) {
+        if (*p == '\\' && *(p+1) != '\0') {
+            dest[j++] = *p++; 
+            dest[j++] = *p++;
+        } else if (*p == '"') {
+            break;
+        } else {
+            dest[j++] = *p++;
+        }
+    }
+    dest[j] = '\0';
+    return 0;
+}
+
 int cmd_escribir(const char *linea, CtxBloque *ctx, int linea_actual) {
-    const char *start = strchr(linea, '(');
-    const char *end = strrchr(linea, ')');
-    if (!start || !end || end <= start) {
+    char arg[MAX_LINEA];
+    
+    if (extraer_arg_escribir(linea, arg, MAX_LINEA) != 0) {
         fprintf(stderr, "Error línea %d: ESCRIBIR requiere argumento entre paréntesis.\n", linea_actual);
         ctx->error_fatal = 1; return -1;
     }
-    start++; 
-    char arg[MAX_LINEA];
-    size_t len = end - start;
-    if (len >= MAX_LINEA) len = MAX_LINEA - 1;
-    strncpy(arg, start, len);
-    arg[len] = '\0';
     
     procesar_escribir(arg);
-    ctx->linea_num++; return 0;
+    ctx->linea_num++; 
+    return 0;
 }
 
 int cmd_colortexto(const char *linea, CtxBloque *ctx, int linea_actual) {
@@ -857,7 +794,76 @@ int cmd_resultado(const char *linea, CtxBloque *ctx, int linea_actual) {
 }
 
 int cmd_asignar(const char *linea, CtxBloque *ctx, int linea_actual) {
-    (void)linea_actual; 
+    (void)linea_actual;
+    
+    const char *ptr = strchr(linea, '$');
+    if (!ptr) {
+        procesar_calcular(linea + 10);
+        ctx->linea_num++; return 0;
+    }
+    ptr++;
+    
+    char nombre_dest[MAX_NOMBRE];
+    int i = 0;
+    while (es_alnum(*ptr) && i < MAX_NOMBRE - 1) nombre_dest[i++] = *ptr++;
+    nombre_dest[i] = '\0';
+    
+    int es_ext = 0, idx_ext = -1, scope_ext = -1;
+    if (buscar_texto_extenso(nombre_dest, &es_ext, &idx_ext, &scope_ext) >= 0) {
+        const char *eq = strchr(linea, '=');
+        if (!eq) {
+            fprintf(stderr, "Error línea %d: Falta '=' en ASIGNAR.\n", linea_actual);
+            ctx->linea_num++; return -1;
+        }
+        eq++; while (*eq == ' ' || *eq == '\t') eq++;
+        
+        char valor_final[MAX_LINEA * 2] = "";
+        const char *p = eq;
+        
+        while (*p) {
+            while (*p == ' ' || *p == '\t') p++;
+            if (!*p) break;
+            
+            if (*p == '"') {
+                p++;
+                while (*p && *p != '"') {
+                    size_t len = strlen(valor_final);
+                    if (len < sizeof(valor_final) - 2) valor_final[len] = *p;
+                    p++;
+                }
+                if (*p == '"') p++;
+            } 
+            else if (*p == '$') {
+                p++;
+                char var_ref[MAX_NOMBRE]; int j=0;
+                while (es_alnum(*p) && j < MAX_NOMBRE-1) var_ref[j++] = *p++;
+                var_ref[j] = '\0';
+                
+                int es_r, idx_r, scope_r;
+                if (buscar_texto_extenso(var_ref, &es_r, &idx_r, &scope_r) >= 0) {
+                    char *val = es_r ? scopes_locales[scope_r].textos_ext[idx_r].valor : textos_ext_globales[idx_r].valor;
+                    if (val) strncat(valor_final, val, sizeof(valor_final) - strlen(valor_final) - 1);
+                } else {
+                    int idx_txt = buscar_texto_var(var_ref);
+                    if (idx_txt >= 0) strncat(valor_final, texto_vars[idx_txt].valor, sizeof(valor_final) - strlen(valor_final) - 1);
+                }
+            }
+            else if (*p == '+') {
+                p++;
+            }
+            else {
+                break;
+            }
+        }
+        
+        // Asignar al TEXTO EXTENSO (hace realloc si hace falta)
+        if (asignar_texto_extenso_valor(es_ext, idx_ext, scope_ext, valor_final) < 0) {
+            fprintf(stderr, "Error línea %d: Fallo al asignar TEXTO EXTENSO '$%s'.\n", linea_actual, nombre_dest);
+            ctx->linea_num++; return -1;
+        }
+        ctx->linea_num++; return 0;
+    }
+    
     procesar_calcular(linea + 10);
     ctx->linea_num++; return 0;
 }
@@ -886,6 +892,12 @@ int cmd_var_decimal(const char *linea, CtxBloque *ctx, int linea_actual) {
 int cmd_var_texto(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (check_declaracion(ctx, linea_actual, ".") != 0) return -1;
     if (procesar_declaracion_variable_texto(linea, linea_actual) < 0) return -1;
+    ctx->linea_num++; return 0;
+}
+
+int cmd_var_texto_extenso(const char *linea, CtxBloque *ctx, int linea_actual) {
+    if (check_declaracion(ctx, linea_actual, ".") != 0) return -1;
+    if (procesar_declaracion_variable_texto_extenso(linea, linea_actual) < 0) return -1;
     ctx->linea_num++; return 0;
 }
 
@@ -1086,6 +1098,20 @@ int cmd_fin_subprograma(const char *linea, CtxBloque *ctx, int linea_actual) {
     return 0;
 }
 
+static const char* encontrar_parentesis_cierre(const char *apertura) {
+    int nivel = 1;
+    const char *p = apertura + 1;
+    while (*p) {
+        if (*p == '(') nivel++;
+        else if (*p == ')') {
+            nivel--;
+            if (nivel == 0) return p;
+        }
+        p++;
+    }
+    return NULL;
+}
+
 int cmd_si(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (!strstr(linea, "ENTONCES")) {
         fprintf(stderr, "Error de sintaxis en línea %d: Falta 'ENTONCES'.\nFormato correcto: SI (condición) ENTONCES.\n", linea_actual);
@@ -1096,8 +1122,8 @@ int cmd_si(const char *linea, CtxBloque *ctx, int linea_actual) {
     int exito = 0, resultado = 0;
     char condicion[MAX_LINEA] = "";
     const char *p_abre = strchr(linea, '(');
-    const char *p_cierra = p_abre ? strchr(p_abre + 1, ')') : NULL;
-    
+    const char *p_cierra = p_abre ? encontrar_parentesis_cierre(p_abre) : NULL;    
+
     if (p_abre && p_cierra && p_cierra > p_abre) {
         int len = (int)(p_cierra - p_abre - 1);
         if (len > 0 && len < MAX_LINEA - 1) memcpy(condicion, p_abre + 1, len), condicion[len] = '\0';
@@ -1358,8 +1384,13 @@ int cmd_fin_funcion(const char *linea, CtxBloque *ctx, int linea_actual) {
 
 int cmd_retornar(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (!ctx->en_funcion) {
-        fprintf(stderr, "Error línea %d: RETORNAR solo permitido dentro de FUNCION.\n", linea_actual);
-        return -1;
+        int fin_func = encontrar_fin_funcion(ctx->linea_num);
+        if (fin_func != -1) {
+            ctx->linea_num = fin_func + 1;
+        } else {
+            ctx->linea_num = num_lineas_programa;
+        }
+        return 0;
     }
     const char *ptr = linea + 8;
     while (*ptr == ' ' || *ptr == '\t') ptr++;
@@ -1375,6 +1406,7 @@ int cmd_retornar(const char *linea, CtxBloque *ctx, int linea_actual) {
     }
 
     ctx->linea_num = ctx->linea_limite + 1;
+    if (!ctx->en_funcion && !en_funcion) { ctx->linea_num = num_lineas_programa; return 0; }
     return 0;
 }
 
@@ -1431,26 +1463,60 @@ int cmd_fin_para(const char *linea, CtxBloque *ctx, int linea_actual) {
 int cmd_fin_mientras(const char *linea, CtxBloque *ctx, int linea_actual) {
     (void)linea; (void)linea_actual;
     int nivel = 0, linea_mientras = ctx->linea_num - 1, while_line = -1;
+    
     while (linea_mientras >= 0) {
-        char lp[MAX_LINEA]; strncpy(lp, lineas_programa[linea_mientras], MAX_LINEA-1); lp[MAX_LINEA-1]='\0';
-        limpiar_string(lp); remover_comentario(lp);
+        char lp[MAX_LINEA]; 
+        strncpy(lp, lineas_programa[linea_mientras], MAX_LINEA-1); 
+        lp[MAX_LINEA-1]='\0';
+        limpiar_string(lp); 
+        remover_comentario(lp);
+        
         if (strncmp(lp, "FIN MIENTRAS", 12) == 0) nivel++;
-        else if (strncmp(lp, "MIENTRAS", 8) == 0 && strstr(lp, "HACER")) { if (nivel == 0) { while_line = linea_mientras; break; } nivel--; }
+        else if (strncmp(lp, "MIENTRAS", 8) == 0 && strstr(lp, "HACER")) { 
+            if (nivel == 0) { while_line = linea_mientras; break; } 
+            nivel--; 
+        }
         linea_mientras--;
     }
+    
     if (while_line != -1) {
         const char *src = lineas_programa[while_line];
-        const char *pa = strchr(src, '('), *pc = pa ? strchr(pa+1, ')') : NULL;
+        
+        const char *pa = strchr(src, '(');
+        const char *pc = pa ? encontrar_parentesis_cierre(pa) : NULL;
+        
         char cond[MAX_LINEA] = "";
-        if (pa && pc && pc > pa) { int len = (int)(pc-pa-1); if (len>0 && len<MAX_LINEA-1) { memcpy(cond, pa+1, len); cond[len]='\0'; } }
-        char *ini = cond; while (*ini==' '||*ini=='\t') ini++; char *fin = ini+strlen(ini)-1;
-        while (fin>ini && (*fin==' '||*fin=='\t'||*fin=='\r')) { *fin='\0'; fin--; }
-        if (ini != cond) memmove(cond, ini, strlen(ini)+1);
-        char ce[MAX_LINEA+2]; ce[0]=' '; strcpy(ce+1, cond);
-        int exito=0, res = evaluar_condicion(ce, &exito);
-        if (exito && res) ctx->linea_num = while_line + 1;
-        else { if (mientras_stack_ptr > 0) mientras_stack_ptr--; ctx->linea_num++; }
-    } else { if (mientras_stack_ptr > 0) mientras_stack_ptr--; ctx->linea_num++; }
+        if (pa && pc && pc > pa) {
+            int len = (int)(pc - pa - 1);
+            if (len > 0 && len < MAX_LINEA - 1) {
+                memcpy(cond, pa + 1, len);
+                cond[len] = '\0';
+            }
+        }
+        
+        char *ini = cond; 
+        while (*ini == ' ' || *ini == '\t') ini++; 
+        char *fin = ini + strlen(ini) - 1;
+        while (fin > ini && (*fin == ' ' || *fin == '\t' || *fin == '\r')) { 
+            *fin = '\0'; fin--; 
+        }
+        if (ini != cond) memmove(cond, ini, strlen(ini) + 1);
+        
+        char ce[MAX_LINEA + 2]; 
+        ce[0] = ' '; 
+        strcpy(ce + 1, cond);
+        int exito = 0, res = evaluar_condicion(ce, &exito);
+        
+        if (exito && res) {
+            ctx->linea_num = while_line + 1;
+        } else {
+            if (mientras_stack_ptr > 0) mientras_stack_ptr--;
+            ctx->linea_num++;
+        }
+    } else {
+        if (mientras_stack_ptr > 0) mientras_stack_ptr--;
+        ctx->linea_num++;
+    }
     return 0;
 }
 
@@ -1498,7 +1564,7 @@ int cmd_mientras(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (strchr(linea, '(') && proceder_stack_ptr > 0) {
         int nivel=0; const char *p=linea+8; while(*p==' ')p++; if (*p=='{') { p++; nivel=atoi(p); }
         int exito, res; char cond[MAX_LINEA]="";
-        const char *pa=strchr(linea,'('), *pc=pa?strchr(pa+1,')'):NULL;
+        const char *pa=strchr(linea,'('), *pc=pa?encontrar_parentesis_cierre(pa):NULL; // ✅ FIX
         if (pa&&pc&&pc>pa) { int len=(int)(pc-pa-1); if(len>0&&len<MAX_LINEA-1){memcpy(cond,pa+1,len);cond[len]='\0';} }
         char *ini=cond; while(*ini==' '||*ini=='\t')ini++; char *fin=ini+strlen(ini)-1; while(fin>ini&&(*fin==' '||*fin=='\t'||*fin=='\r')){*fin='\0';fin--;} if(ini!=cond)memmove(cond,ini,strlen(ini)+1);
         char ce[MAX_LINEA+2]; ce[0]=' '; strcpy(ce+1,cond); res=evaluar_condicion(ce,&exito);
@@ -1511,7 +1577,7 @@ int cmd_mientras(const char *linea, CtxBloque *ctx, int linea_actual) {
     if (strstr(linea, "HACER")) {
         if (mientras_stack_ptr < MAX_NESTING) { mientras_stack[mientras_stack_ptr].linea_inicio=ctx->linea_num; mientras_stack[mientras_stack_ptr].linea_fin=encontrar_fin_mientras(ctx->linea_num,0); mientras_stack_ptr++; }
         int exito=0,res=0; char cond[MAX_LINEA]="";
-        const char *pa=strchr(linea,'('), *pc=pa?strchr(pa+1,')'):NULL;
+        const char *pa=strchr(linea,'('), *pc=pa?encontrar_parentesis_cierre(pa):NULL; // ✅ FIX
         if (pa&&pc&&pc>pa) { int len=(int)(pc-pa-1); if(len>0&&len<MAX_LINEA-1){memcpy(cond,pa+1,len);cond[len]='\0';} }
         limpiar_string(cond); char ce[MAX_LINEA+2]; ce[0]=' '; strcpy(ce+1,cond); res=evaluar_condicion(ce,&exito);
         if (!exito) { fprintf(stderr, "Error línea %d: Condición inválida.\n", linea_actual); if(mientras_stack_ptr>0)mientras_stack_ptr--; int fin=encontrar_fin_mientras(ctx->linea_num,0); ctx->linea_num=(fin!=-1)?fin+1:ctx->linea_num+1; return 0; }
@@ -1556,307 +1622,41 @@ int cmd_leer_pin(const char *linea, CtxBloque *ctx, int linea_actual) {
     return 0;
 }
 
-/*static int dispatch_command(const char *linea, CtxBloque *ctx, int linea_actual) {
-    const char *ptr = linea;
-    while (*ptr == ' ' || *ptr == '\t') ptr++;
-    
-    for (int i = 0; dispatch_table[i].keyword != NULL; i++) {
-        if (comienza_con(ptr, dispatch_table[i].keyword)) {
-            return dispatch_table[i].handler(ptr, ctx, linea_actual);
-        }
-    }
-    return -2;
-}*/
-
-/* MOTOR GENÉRICO DE EJECUCIÓN */
-/*int ejecutar_bloque(CtxBloque *ctx) {
-    while (ctx->linea_num < num_lineas_programa && 
-      (ctx->linea_limite < 0 || ctx->linea_num <= ctx->linea_limite)) {   
-        char linea[MAX_LINEA];
-        strncpy(linea, lineas_programa[ctx->linea_num], MAX_LINEA - 1);
-        linea[MAX_LINEA - 1] = '\0';
-        limpiar_string(linea);
-        saltar_espacios_inplace(linea);
-        remover_comentario(linea);
-
-        int linea_actual = ctx->linea_num + 1;
-        
-        if (!strlen(linea)) {
-            ctx->linea_num++;
-            continue;
-        }
-        
-        if (!ctx->inicio_encontrado) {
-            if (comienza_con(linea, "PROGRAMA")) {
-                ctx->inicio_encontrado = 1;
-            } else {
-                fprintf(stderr, "Error línea %d.\n", linea_actual);
-                return -1;
-            }
-            ctx->linea_num++;
-            continue;
-        }
-        
-        if (comienza_con(linea, "FINAL")) {
-            if (!fin_principal_encontrado) {
-                fprintf(stderr, "Error: El programa no tiene FIN PRINCIPAL antes de FINAL.\n");
-                return -1;
-            }
-            nico_gpio_cleanup();
-            cerrar_todos_los_archivos();
-            return 0;
-        }
-        
-        if (comienza_con(linea, "BLOQUE PRINCIPAL")) {
-            if (ctx->en_bloque_principal) {
-                fprintf(stderr, "Error línea %d: Ya hay un BLOQUE PRINCIPAL abierto.\n", linea_actual);
-                return -1;
-            }
-            ctx->en_bloque_principal = 1;
-            ctx->fase_declaraciones = 0;
-        
-            {
-                int inicio_main = ctx->linea_num + 1;
-                int fin_main = -1;
-
-                for (int v = inicio_main; v < num_lineas_programa; v++) {
-                    char lb[MAX_LINEA];
-                    strncpy(lb, lineas_programa[v], MAX_LINEA-1);
-                    lb[MAX_LINEA-1] = '\0';
-                    limpiar_string(lb);
-                    remover_comentario(lb);
-                    if (comienza_con(lb, "FIN PRINCIPAL")) {
-                        fin_main = v;
-                        break;
-                    }
-                }
-
-                if (fin_main != -1) {
-                    validar_estructura_bloques(inicio_main, fin_main);
-                }
-            }
-
-            ctx->linea_num++;
-            continue;
-        }
-        
-        if (comienza_con(linea, "FIN PRINCIPAL")) {
-            if (!ctx->en_bloque_principal) {
-                fprintf(stderr, "Error línea %d: FIN PRINCIPAL sin BLOQUE PRINCIPAL.\n", linea_actual);
-                return -1;
-            }
-            ctx->en_bloque_principal = 0;
-            fin_principal_encontrado = 1;
-            ctx->linea_num++;
-            continue;
-        }
-        
-        if (*linea == '$' && strchr(linea, '=') != NULL) {
-            if (!comienza_con(linea, "CALCULAR EN") && 
-                !comienza_con(linea, "RESULTADO EN") && 
-                !comienza_con(linea, "ASIGNAR EN")) {
-                
-                fprintf(stderr, "Error línea %d: Use CALCULAR EN, RESULTADO EN o ASIGNAR EN para asignaciones.\n", linea_actual);
-                fprintf(stderr, "Ejemplo válido: CALCULAR EN $suma = $var1 + $var2.\n");
-                return -1;
-            }
-        }
-        
-
-        if (en_subprograma && (comienza_con(linea, "VARIABLE") || comienza_con(linea, "DECLARAR"))) {
-            fprintf(stderr, "Error línea %d: Los SUBPROGRAMAS no admiten declarar variables locales.\n", linea_actual);
-            fprintf(stderr, "Use variables globales declaradas antes del BLOQUE PRINCIPAL.\n");
-            return -1;
-        }
-        
-       
-        if (!comienza_con(linea, "CONSTANTE") && !comienza_con(linea, "DECLARAR") &&
-            !comienza_con(linea, "VARIABLE") && !comienza_con(linea, "LISTA") &&
-            !comienza_con(linea, "ETIQUETA") && !comienza_con(linea, "SUBPROGRAMA") &&
-            !comienza_con(linea, "FUNCION") && !comienza_con(linea, "VARIABLE ARCHIVO") &&
-            !comienza_con(linea, "BLOQUE PRINCIPAL")) {
-            ctx->fase_declaraciones = 0;
-        }
-        
-        if (!ctx->en_bloque_principal && !ctx->en_subprograma && !ctx->en_funcion) {
-            if (comienza_con(linea, "ESCRIBIR") || comienza_con(linea, "MOSTRAR") || comienza_con(linea, "LEER") ||
-                comienza_con(linea, "LIMPIARPANTALLA") || comienza_con(linea, "ESPERAR") ||
-                comienza_con(linea, "SISTEMA") || comienza_con(linea, "CALCULAR") ||
-                comienza_con(linea, "ASIGNAR") || comienza_con(linea, "RESULTADO") ||
-                comienza_con(linea, "PARA") || comienza_con(linea, "MIENTRAS") ||
-                comienza_con(linea, "REALIZAR") || comienza_con(linea, "SI ") ||
-                comienza_con(linea, "RETORNAR")) {
-                fprintf(stderr, "Error línea %d: Código ejecutable fuera de BLOQUE PRINCIPAL, SUBPROGRAMA o FUNCION.\n", linea_actual);
-                return -1;
-            }
-        }
-
-        if (comienza_con(linea, "ESCRIBIR") || comienza_con(linea, "MOSTRAR")) {
-            char *texto;
-            if (comienza_con(linea, "ESCRIBIR")) {
-                texto = linea + 8;
-            } else {
-                texto = linea + 7;
-            }
-            while (*texto == ' ' || *texto == '\t') texto++;
-            procesar_escribir(texto);
-            fflush(stdout);
-            ctx->linea_num++;
-            continue;
-        }
-        
-        if (comienza_con(linea, "CURSOR") || comienza_con(linea, "POSICIONAR")) {
-            const char *ptr = strchr(linea, '(');
-            if (ptr) {
-                ptr++;
-                char buffer[MAX_LINEA];
-                strncpy(buffer, ptr, MAX_LINEA - 1);
-                buffer[MAX_LINEA - 1] = '\0';
-        
-                char *fin = strchr(buffer, ')');
-                if (fin) *fin = '\0';
-        
-                char *coma = strchr(buffer, ',');
-                if (coma) {
-                    *coma = '\0';
-                    int fila = atoi(buffer);
-                    int columna = atoi(coma + 1);
-            
-                    if (fila > 0 && columna > 0) {
-                        nico_posicionar_cursor(fila, columna);
-                    }
-                }
-            }
-            ctx->linea_num++;
-            continue;
-        }       
- 
-        if (comienza_con(linea, "ESCRIBIRARCHIVO")) {
-            procesar_escribirarchivo(linea + 15);
-            ctx->linea_num++;
-            continue;
-        }
-        
-        if (comienza_con(linea, "LEERARCHIVO")) {
-            procesar_leerarchivo(linea + 11);
-            ctx->linea_num++;
-            continue;
-        }
-        
-        if (comienza_con(linea, "LEERLINEA")) {
-            procesar_leerlinea(linea + 9);
-            ctx->linea_num++;
-            continue;
-        }
-        
-        if (comienza_con(linea, "ABRIRARCHIVO")) {
-            procesar_abrirarchivo(linea + 13);
-            ctx->linea_num++;
-            continue;
-        }        
-
-        if (comienza_con(linea, "CERRARARCHIVO")) {
-            procesar_cerrararchivo(linea + 13);
-            ctx->linea_num++;
-            continue;
-        }
-        
-        if (comienza_con(linea, "LEER")) {
-            char *argumento = linea + 4;
-            while (*argumento == ' ' || *argumento == '\t') argumento++;
-            procesar_leer(argumento);
-            ctx->linea_num++;
-            continue;
-        }
-        
-        if (comienza_con(linea, "LEERHASTA")) {
-            const char *apertura = strchr(linea, '(');
-            if (apertura) {
-                procesar_leerhasta(apertura);
-            }
-            ctx->linea_num++;
-            continue;
-        }
-        
-        if (comienza_con(linea, "LEERCARACTER")) {
-            procesar_leercaracter(linea + 14);
-            ctx->linea_num++;
-            continue;
-        }
-
-        int res = dispatch_command(linea, ctx, linea_actual);
-        if (res >= 0) continue;      
-        if (res == -1) return -1;    
-        
-        if (strncmp(linea, "COPIARTEXTO(", 12) == 0 || strncmp(linea, "CONCATENARTEXTO(", 16) == 0 ||
-            strncmp(linea, "MAYUSCULAS(", 11) == 0 || strncmp(linea, "MINUSCULAS(", 11) == 0 ||
-            strncmp(linea, "RECORTARTEXTO(", 14) == 0 || strncmp(linea, "REEMPLAZARTEXTO(", 16) == 0 ||
-            strncmp(linea, "ENTEROATEXTO(", 13) == 0 || strncmp(linea, "DECIMALATEXTO(", 14) == 0 ||
-            strncmp(linea, "CARACTERATEXTO(", 15) == 0 || strncmp(linea, "REPETIRTEXTO(", 13) == 0 ||
-            strncmp(linea, "EXTRAERTEXTO(", 13) == 0 || strncmp(linea, "DIVIDIRTEXTO(", 13) == 0) {
-            procesar_funcion_texto(linea);
-            ctx->linea_num++;
-            continue;
-        }
-        
-        if (comienza_con(linea, "ESPERAR")) {
-            const char *ptr = linea + 7;
-            while (*ptr == ' ' || *ptr == '\t' || *ptr == '(') ptr++;
-            
-            if (!strchr(ptr, ',')) {
-                fprintf(stderr, "Error línea %d: Formato inválido. Uso correcto: ESPERAR(valor, UNIDAD)\n", ctx->linea_num + 1);
-                exit(1);
-            }
-            
-            char *argumento = linea + 7;
-            while (*argumento == ' ' || *argumento == '\t') argumento++;
-            procesar_esperar(argumento);
-            ctx->linea_num++;
-            continue;
-        }
-     
-        if (comienza_con(linea, "SISTEMA")) {
-            const char *p = linea + 7; 
-            while (*p == ' ' || *p == '\t' || *p == '(') p++;
-    
-            const char *fin = strchr(p, ')');
-            if (!fin) fin = p + strlen(p);
-    
-            char cmd[MAX_LINEA];
-            int len = fin - p;
-            if (len > 0 && len < MAX_LINEA - 1) {
-                strncpy(cmd, p, len);
-                cmd[len] = '\0';
-        
-                char *start = cmd;
-                char *end = start + strlen(start) - 1;
-                if (strlen(start) >= 2 && 
-                    ((start[0] == '"' && *end == '"') || 
-                    (start[0] == '\'' && *end == '\''))) {
-                        start++;
-                        *end = '\0';
-                }
-        
-                while (strlen(start) > 0 && start[strlen(start)-1] == ' ') 
-                start[strlen(start)-1] = '\0';
-        
-                if (strlen(start) > 0) procesar_sistema(start);
-            }
-            ctx->linea_num++; continue;
-        }
-        
-        ctx->linea_num++;
-    }
-    return error_fatal ? -1 : 0; 
-}    
-*/
+void handler_sigint(int sig) {
+    (void)sig;
+    extern void restaurar_terminal_completa(void);
+    restaurar_terminal_completa();
+    printf("\n> Terminal restaurada. Programa interrumpido.\n");
+    fflush(stdout);
+    exit(0);
+}
 
 int main(int argc, char *argv[]) {
+    signal(SIGINT, handler_sigint);   // Ctrl+C
+    signal(SIGTERM, handler_sigint);  // Kill
+
 #ifdef _WIN32
-    #include <windows.h>
     SetConsoleOutputCP(65001);
     SetConsoleCP(65001);
+    
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD dwMode = 0;
+    if (GetConsoleMode(hOut, &dwMode)) {
+        SetConsoleMode(hOut, dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    }
 #endif
+
+    if (argc >= 3 && strcmp(argv[1], "-e") == 0) {
+        int exito = 0;
+        double resultado = evaluar_expresion_completa(argv[2], &exito);
+        if (exito) {
+            printf("%g\n", resultado);
+        } else {
+            fprintf(stderr, "Error: No se pudo evaluar la expresión.\n");
+            return 1;
+        }
+        return 0;
+    }
 
     if (argc == 2) {
         if (cargar_archivo_en_memoria(argv[1]) != 0) {
@@ -1875,7 +1675,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     
-    fprintf(stderr, "\n> Intérprete del lenguaje Nico v1.0\n");
+    fprintf(stderr, "\n> Intérprete del lenguaje Nico v1.0.1\n");
     fprintf(stderr, "> Modo interactivo. Escribí SALIR para terminar.\n");
     fprintf(stderr, "> Escribí ? para ver ayuda.\n");
     

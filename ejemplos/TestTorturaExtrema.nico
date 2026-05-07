@@ -27,7 +27,7 @@ PROGRAMA TestTorturaExtrema
     LISTA ENTERA $lista2[500]
     LISTA DECIMAL $lista3[500]
 
-// ACKERMANN FIX - SIN LLAMADAS ANIDADAS
+// ACKERMANN
 FUNCION ENTERA ACKERMANN($m, $n)
         
     SI ($m IGUAL 0) ENTONCES
@@ -44,7 +44,7 @@ FUNCION ENTERA ACKERMANN($m, $n)
     RETORNAR $res_ack
 FIN FUNCION
     
-// FIBONACCI - USAR DECIMAL PARA EVITAR OVERFLOW 
+// FIBONACCI 
 FUNCION ENTERA FIBONACCI($u)
         
     SI ($u MENOR IGUAL 0) ENTONCES
@@ -57,7 +57,7 @@ FUNCION ENTERA FIBONACCI($u)
         RETORNAR FIBONACCI($u - 1) + FIBONACCI($u - 2)  
 FIN FUNCION
     
-// FACTORIAL - USAR DECIMAL PARA NÚMEROS GRANDES
+// FACTORIAL
 FUNCION DECIMAL FACTORIAL_BIG($n)
         
     MIENTRAS ($idx_fact MENOR IGUAL $n) HACER
@@ -125,6 +125,7 @@ SUBPROGRAMA ANIDAMIENTO_EXTREMO
 FIN SUBPROGRAMA
 
 BLOQUE PRINCIPAL
+    ESCRIBIR("") SALTO
     ESCRIBIR ("╔════════════════════════════════════════════════════╗") SALTO
     ESCRIBIR ("║     TEST DE TORTURA EXTREMA                        ║") SALTO
     ESCRIBIR ("║     Ackermann + Variables Sin Signo                ║") SALTO
@@ -152,17 +153,17 @@ BLOQUE PRINCIPAL
     ESCRIBIR ("      ✓ Iteraciones anidadas: $contador") SALTO
     
     // Test 5: Ackermann FIX - Ahora debería funcionar
-    ESCRIBIR ("\[5/8\] Ackermann(3, 2) - ¡Con fix de recursión!...") SALTO
+    ESCRIBIR ("\[5/8\] Ackermann(3, 2)") SALTO
     CALCULAR EN $resultado = ACKERMANN(3, 2)
     ESCRIBIR ("      ✓ Ackermann(3,2) = $resultado (esperado: 29)") SALTO
     
     // Test 6: Fibonacci DECIMAL - Sin overflow 
-    ESCRIBIR ("\[6/8\] Fibonacci(30) - Con decimal...") SALTO
+    ESCRIBIR ("\[6/8\] Fibonacci(30)") SALTO
     CALCULAR EN $fib_result = FIBONACCI(30)
     ESCRIBIR ("      ✓ Fibonacci(30) = $fib_result (esperado: 832040)") SALTO
     
     // Test 7: Factorial DECIMAL - Sin overflow
-    ESCRIBIR ("\[7/8\] Factorial(15) - Con decimal...") SALTO
+    ESCRIBIR ("\[7/8\] Factorial(15)") SALTO
     CALCULAR EN $fact_result = FACTORIAL_BIG(15)
     ESCRIBIR ("      ✓ Factorial(15) = $fact_result (esperado: 1.30767e+12)") SALTO
     
@@ -177,21 +178,21 @@ BLOQUE PRINCIPAL
     ESCRIBIR ("╔════════════════════════════════════════════════════╗") SALTO
     ESCRIBIR ("║              RESULTADOS FINALES                    ║") SALTO
     ESCRIBIR ("╠════════════════════════════════════════════════════╣") SALTO
-    ESCRIBIR ("║  Contador total: $contador                         ║") SALTO
-    ESCRIBIR ("║  Suma total: $suma_total                           ║") SALTO
-    ESCRIBIR ("║  Ackermann(3,4): $resultado                        ║") SALTO
-    ESCRIBIR ("║  Fibonacci(30): $fib_result                        ║") SALTO
-    ESCRIBIR ("║  Factorial(15): $fact_result                       ║") SALTO
+    ESCRIBIR ("║  Contador total: $contador                               ║") SALTO
+    ESCRIBIR ("║  Suma total: $suma_total                                ║") SALTO
+    ESCRIBIR ("║  Ackermann(3,4): $resultado                          ║") SALTO
+    ESCRIBIR ("║  Fibonacci(30): $fib_result                             ║") SALTO
+    ESCRIBIR ("║  Factorial(15): $fact_result                      ║") SALTO
     ESCRIBIR ("╚════════════════════════════════════════════════════╝") SALTO
     ESCRIBIR ("") SALTO
     
     SI ($contador MAYOR 0) ENTONCES
-        ESCRIBIR ("✅ ¡NICO SOBREVIVIÓ A LA TORTURA!") SALTO
+        MOSTRAR ("✅ ¡NICO SOBREVIVIÓ A LA TORTURA!\n") SALTO
     SINO
-        ESCRIBIR ("❌ Algo salió mal...") SALTO
+        ESCRIBIR ("❌ Algo salió mal...\n") SALTO
     FIN SI
     
     ESCRIBIR ("") SALTO
-    ESCRIBIR ("=== FIN DEL TEST DE TORTURA v2 ===") SALTO
+    MOSTRAR ("=== FIN DEL TEST DE TORTURA ===\n") SALTO
 FIN PRINCIPAL
 FINAL

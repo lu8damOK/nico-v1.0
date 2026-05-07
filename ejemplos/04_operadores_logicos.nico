@@ -6,7 +6,7 @@ PROGRAMA LogicaBooleana
     VARIABLE ENTERA $puntos = 8
 
 BLOQUE PRINCIPAL
-
+    ESCRIBIR("") SALTO
     // Y (AND): Ambas deben ser verdaderas
     SI (($edad MAYOR IGUAL 18) Y ($tiene_carnet IGUAL 1)) ENTONCES
         ESCRIBIR("Puedes conducir legalmente.") SALTO
@@ -25,5 +25,6 @@ BLOQUE PRINCIPAL
             ESCRIBIR("Conductor joven y seguro.") SALTO
         FIN SI
     FIN SI
+    ESCRIBIR("") SALTO
 FIN PRINCIPAL
 FINAL

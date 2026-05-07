@@ -1,11 +1,11 @@
 /*
- * Nico v1.0 - Intérprete Educativo de Scripting en Español
+ * Nico v1.0.1 - Intérprete Educativo de Scripting en Español
  * @file:         io.c
  * @author:       Diego Alejandro Majluff (Diseño, Arquitectura y Supervisión)
  * @ai_assist:    Qwen (Alibaba Cloud) - Implementación, Debugging y Optimización
  * @license:      MIT / Personal Use (ver LICENSE)
- * @description:  Entrada/salida estándar, manejo de archivos, 
- *                lectura de líneas y formateo de texto.
+ * @description:  Operaciones de entrada/salida y efectos. Implementa ESCRIBIR, LEER,
+ *                manejo de archivos, cursor, colores y despacho de comandos de I/O.
  */
 #define _DEFAULT_SOURCE
 #include "nico.h"
@@ -13,9 +13,61 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <unistd.h>
+#include <time.h> 
 
-/* FUNCIONES DE ARCHIVOS */
+// CROSS-PLATFORM 
+#ifdef _WIN32
+    #include <windows.h>
+    #include <conio.h>
+    #ifndef _WIN32_WINNT
+        #define _WIN32_WINNT 0x0A00
+    #endif 
+#else
+    #include <poll.h>
+    #include <unistd.h>
+    #include <termios.h>
+    #include <sys/ioctl.h>
+#endif
+
+#ifdef _WIN32
+    static HANDLE h_stdin_win = INVALID_HANDLE_VALUE;
+    static HANDLE h_stdout_win = INVALID_HANDLE_VALUE;
+    static DWORD orig_mode_in = 0;
+    static DWORD orig_mode_out = 0;
+    static int win_console_saved = 0;
+#else
+    static struct termios orig_termios;
+    static int termios_guardado = 0;
+#endif
+static int raw_init = 0;
+
+void restaurar_terminal_completa(void);
+
+// TIEMPOMS: Helper cross-platform para obtener milisegundos
+static long long obtener_tiempo_ms(void) {
+#ifdef _WIN32
+    static LARGE_INTEGER freq = {0};
+    LARGE_INTEGER count;
+    
+    if (freq.QuadPart == 0) {
+        QueryPerformanceFrequency(&freq);
+    }
+    if (freq.QuadPart != 0 && QueryPerformanceCounter(&count)) {
+        return (long long)((count.QuadPart * 1000LL) / freq.QuadPart);
+    }
+    return (long long)GetTickCount64();
+#else
+    struct timespec ts;
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
+        return (long long)(ts.tv_sec * 1000LL + ts.tv_nsec / 1000000LL);
+    }
+    return (long long)time(NULL) * 1000LL;
+#endif
+}
+
+int iniciar_terminal_raw(void);
+
+// FUNCIONES DE ARCHIVOS
 int procesar_usararchivo(const char *nombre_archivo, const char *modo_str, const char *nombre_variable) {
     char modo_c[5] = "";
     
@@ -70,7 +122,7 @@ int procesar_usararchivo(const char *nombre_archivo, const char *modo_str, const
     return idx;
 }
 
-/* ABRIRARCHIVO */
+// ABRIRARCHIVO
 void procesar_abrirarchivo(const char *argumento) {
     if (!argumento) return;
     
@@ -127,7 +179,7 @@ void procesar_abrirarchivo(const char *argumento) {
     procesar_usararchivo(nombre_archivo, modo_str, nombre_var);
 }
 
-/* ESCRIBIRARCHIVO */
+// ESCRIBIRARCHIVO
 void procesar_escribirarchivo(const char *argumento) {
     if (!argumento) return;
     
@@ -188,7 +240,7 @@ void procesar_escribirarchivo(const char *argumento) {
     fprintf(stderr, "Error: Archivo '%s' no está abierto.\n", nombre_var);
 }
 
-/* LEERARCHIVO */
+// LEERARCHIVO
 void procesar_leerarchivo(const char *argumento) {
     if (!argumento) return;
     
@@ -253,7 +305,7 @@ void procesar_leerarchivo(const char *argumento) {
     }
 }
 
-/* LEERLINEA */
+// LEERLINEA
 void procesar_leerlinea(const char *argumento) {
     if (!argumento) return;
     
@@ -310,7 +362,7 @@ void procesar_leerlinea(const char *argumento) {
     agregar_texto_var(nombre_destino, linea);
 }
 
-/* FINARCHIVO */
+// FINARCHIVO
 int procesar_finarchivo(const char *argumento) {
     if (!argumento) return 0;
     
@@ -336,7 +388,7 @@ int procesar_finarchivo(const char *argumento) {
     return 0;
 }
 
-/* CERRARARCHIVO */
+// CERRARARCHIVO
 void procesar_cerrararchivo(const char *argumento) {
     if (!argumento) return;
     
@@ -364,7 +416,7 @@ void procesar_cerrararchivo(const char *argumento) {
     }
 }
 
-/* FUNCIONES DE TEXTO */
+// FUNCIONES DE TEXTO
 void procesar_funcion_texto(const char *linea) {
     char linea_local[MAX_LINEA];
     strncpy(linea_local, linea, MAX_LINEA - 1);
@@ -430,7 +482,7 @@ void procesar_funcion_texto(const char *linea) {
     }
 }
 
-/* PROCESAR CALCULAR */
+// PROCESAR CALCULAR
 void procesar_calcular(const char *linea) {
     if (comienza_con(linea, "COPIARTEXTO(") || comienza_con(linea, "CONCATENARTEXTO(") ||
         comienza_con(linea, "MAYUSCULAS(") || comienza_con(linea, "MINUSCULAS(") ||
@@ -741,7 +793,7 @@ void procesar_calcular(const char *linea) {
     fprintf(stderr, "Error: Variable '$%s' no declarada.\n", nombre_dest);
 }
 
-/* PROCESAR ESCRIBIR */
+// PROCESAR ESCRIBIR
 void procesar_escribir(const char *texto) {
     if (!texto) return;
     int dec_precisions[MAX_VARS];
@@ -771,7 +823,12 @@ void procesar_escribir(const char *texto) {
     
     char texto_final[MAX_LINEA] = "";
     int i = 0;
-    while (*ptr && *ptr != '"' && i < MAX_LINEA - 1) texto_final[i++] = *ptr++;
+    while (*ptr && i < MAX_LINEA - 1) {
+        if (*ptr == '\\' && *(ptr+1) == '"') { texto_final[i++] = *ptr++; texto_final[i++] = *ptr++; continue; }
+        if (*ptr == '\\' && *(ptr+1) == '\\') { texto_final[i++] = *ptr++; texto_final[i++] = *ptr++; continue; }
+        if (*ptr == '"') break;
+        texto_final[i++] = *ptr++;
+    }
     texto_final[i] = '\0';
     
     if (*ptr != '"') {
@@ -814,7 +871,7 @@ void procesar_escribir(const char *texto) {
     
     int tiene_salto = (strncmp(ptr, "SALTO", 5) == 0) ? 1 : 0;
     
-    /* PROCESAR OUTPUT */
+    // PROCESAR OUTPUT
     char resultado[MAX_LINEA] = "";
     ptr = texto_final;
     
@@ -895,6 +952,7 @@ void procesar_escribir(const char *texto) {
         if (*ptr == '\\' && *(ptr+1) == '\\') { strcat(resultado, "\\"); ptr += 2; continue; }
         if (*ptr == '\\' && *(ptr+1) == '[') { strcat(resultado, "["); ptr += 2; continue; }
         if (*ptr == '\\' && *(ptr+1) == ']') { strcat(resultado, "]"); ptr += 2; continue; }
+        if (*ptr == '\\' && *(ptr+1) == '"') { strcat(resultado, "\""); ptr += 2; continue; }
         
         if (*ptr == '$') {
             ptr++;
@@ -904,7 +962,6 @@ void procesar_escribir(const char *texto) {
             nombre[j] = '\0';
             int encontrado = 0;
             char buf_num[64] = {0};
-           // char buf_texto[MAX_TEXTO_LEN] = {0};
             int idx;
 
             char *corchete = strchr(ptr, '[');
@@ -1237,6 +1294,18 @@ void procesar_escribir(const char *texto) {
                 else if ((idx = buscar_variable_caracter_sin_signo(nombre)) >= 0) { sprintf(buf_num, "%c", (unsigned char)variables_caracter_sin_signo[idx].valor); encontrado = 1; }
             }
 
+            if (!encontrado) {
+                int es_ext = 0, idx_ext = -1, scope_ext = -1;
+                if (buscar_texto_extenso(nombre, &es_ext, &idx_ext, &scope_ext) >= 0) {
+                    char *val = es_ext ? scopes_locales[scope_ext].textos_ext[idx_ext].valor 
+                                       : textos_ext_globales[idx_ext].valor;
+                    if (val) {
+                        strncat(resultado, val, sizeof(resultado) - strlen(resultado) - 1);
+                    }
+                    encontrado = 1;
+                }
+            }
+
             if (encontrado) {
                 if (buf_num[0] != '\0') {
                     strcat(resultado, buf_num);
@@ -1260,7 +1329,7 @@ void procesar_escribir(const char *texto) {
     fflush(stdout);
 }
 
-/* PROCESAR LEER */
+// PROCESAR LEER
 void procesar_leer(const char *argumento) {
     if (!argumento) return;
     
@@ -1406,7 +1475,7 @@ void procesar_leer(const char *argumento) {
     fprintf(stderr, "Error: Variable '$%s' no declarada.\n", nombre_var);
 }
 
-/* PROCESAR LEERCARACTER */
+// PROCESAR LEERCARACTER
 void procesar_leercaracter(const char *argumento) {
     if (!argumento) return;
     
@@ -1443,7 +1512,7 @@ void procesar_leercaracter(const char *argumento) {
     fprintf(stderr, "Error: Variable CARACTER '$%s' no declarada.\n", nombre_var);
 }
 
-/* PROCESAR LEERHASTA */
+// PROCESAR LEERHASTA
 void procesar_leerhasta(const char *argumento) {
     if (!argumento) return;
     
@@ -1521,7 +1590,7 @@ void procesar_leerhasta(const char *argumento) {
     }
 }
 
-/* FUNCIONES DE COLORES */
+// FUNCIONES DE COLORES
 int obtener_codigo_color_texto(const char *color) {
     if (strcmp(color, "negro") == 0) return 30;
     if (strcmp(color, "rojo") == 0) return 31;
@@ -1608,7 +1677,63 @@ void procesar_textoreset(const char *argumento) {
     (void)argumento; printf("\033[0m"); fflush(stdout); 
 }
 
-/* OTRAS FUNCIONES */
+static int extraer_nombre_var_texto(const char *linea, char *nombre) {
+    const char *p = strchr(linea, '$');
+    if (!p) return -1;
+    p++;
+    int i = 0;
+    while (es_alnum(*p) && i < MAX_NOMBRE - 1) nombre[i++] = *p++;
+    nombre[i] = '\0';
+    return (i > 0) ? 0 : -1;
+}
+
+int cmd_hora_actual(const char *linea, CtxBloque *ctx, int linea_actual) {
+    char nombre[MAX_NOMBRE];
+    if (extraer_nombre_var_texto(linea, nombre) < 0) {
+        fprintf(stderr, "Error línea %d: HORAACTUAL requiere variable de texto ($var).\n", linea_actual);
+        ctx->linea_num++; return 0;
+    }
+
+    int idx = buscar_texto_var(nombre);
+    if (idx < 0) {
+        fprintf(stderr, "Error línea %d: Variable TEXTO '$%s' no declarada.\n", linea_actual, nombre);
+        ctx->linea_num++; return 0;
+    }
+
+    time_t now = time(NULL);
+    struct tm *t = localtime(&now);
+    char buffer[MAX_LINEA];
+    strftime(buffer, sizeof(buffer), "%H:%M:%S", t);
+
+    strncpy(texto_vars[idx].valor, buffer, MAX_TEXTO_LEN - 1);
+    texto_vars[idx].valor[MAX_TEXTO_LEN - 1] = '\0';
+    ctx->linea_num++; return 0;
+}
+
+int cmd_fecha_actual(const char *linea, CtxBloque *ctx, int linea_actual) {
+    char nombre[MAX_NOMBRE];
+    if (extraer_nombre_var_texto(linea, nombre) < 0) {
+        fprintf(stderr, "Error línea %d: FECHAACTUAL requiere variable de texto ($var).\n", linea_actual);
+        ctx->linea_num++; return 0;
+    }
+
+    int idx = buscar_texto_var(nombre);
+    if (idx < 0) {
+        fprintf(stderr, "Error línea %d: Variable TEXTO '$%s' no declarada.\n", linea_actual, nombre);
+        ctx->linea_num++; return 0;
+    }
+
+    time_t now = time(NULL);
+    struct tm *t = localtime(&now);
+    char buffer[MAX_LINEA];
+    strftime(buffer, sizeof(buffer), "%d/%m/%Y", t);
+
+    strncpy(texto_vars[idx].valor, buffer, MAX_TEXTO_LEN - 1);
+    texto_vars[idx].valor[MAX_TEXTO_LEN - 1] = '\0';
+    ctx->linea_num++; return 0;
+}
+
+// OTRAS FUNCIONES
 void procesar_limpiarpantalla(void) {
 #ifdef _WIN32
     (void)system("cls");
@@ -1617,34 +1742,64 @@ void procesar_limpiarpantalla(void) {
 #endif
 }
 
+// PROCESAR ESPERAR: Soporta $variables, MICROS y cross-platform
 void procesar_esperar(const char *argumento) {
-    if (!argumento) return;
-    char arg[MAX_LINEA];
-    strncpy(arg, argumento, MAX_LINEA - 1);
-    arg[MAX_LINEA - 1] = '\0';
-    arg[MAX_LINEA - 1] = '\0';
-    limpiar_string(arg);
-    
-    char valor_str[MAX_LINEA] = "";
-    int i = 0;
-    const char *ptr = arg;
+    const char *ptr = argumento;
     while (*ptr == ' ' || *ptr == '\t' || *ptr == '(') ptr++;
-    while (*ptr >= '0' && *ptr <= '9' && i < MAX_LINEA - 1) valor_str[i++] = *ptr++;
-    valor_str[i] = '\0';
     
-    int tiempo = atoi(valor_str);
-    if (tiempo <= 0) {
+    const char *cierre = strrchr(ptr, ')');
+    if (!cierre) {
+        fprintf(stderr, "Error: ESPERAR requiere paréntesis de cierre.\n");
+        return;
+    }
+    
+    char contenido[MAX_LINEA];
+    int len = (int)(cierre - ptr);
+    if (len <= 0 || len >= MAX_LINEA - 1) {
+        fprintf(stderr, "Error: Argumento de ESPERAR inválido.\n");
+        return;
+    }
+    strncpy(contenido, ptr, len);
+    contenido[len] = '\0';
+    
+    char *coma = strchr(contenido, ',');
+    if (!coma) {
+        fprintf(stderr, "Error: Formato inválido. Uso: ESPERAR(valor, UNIDAD)\n");
+        return;
+    }
+    *coma = '\0';
+    char *arg_valor = contenido;
+    char *arg_unidad = coma + 1;
+    while (*arg_unidad == ' ' || *arg_unidad == '\t') arg_unidad++;
+    
+    int exito = 0;
+    double valor = evaluar_expresion_completa(arg_valor, &exito);
+    if (!exito || valor < 0) {
         fprintf(stderr, "Error: ESPERAR requiere un valor numérico positivo.\n");
         return;
     }
     
-    if (strstr(ptr, "MICROSEGUNDOS") != NULL) usleep(tiempo);
-    else if (strstr(ptr, "MILISEGUNDOS") != NULL) usleep(tiempo * 1000);
-    else if (strstr(ptr, "SEGUNDOS") != NULL) sleep(tiempo);
-    else {
-        fprintf(stderr, "Error: ESPERAR requiere unidad de tiempo explícita.\n");
-        fprintf(stderr, "Uso válido:\n  ESPERAR(100, MILISEGUNDOS)\n ESPERAR (500000, MICROSEGUNDOS)\n ESPERAR (1, SEGUNDOS).\n");
+    long long tiempo_us = 0;
+    if (strstr(arg_unidad, "MICROSEGUNDOS") || strstr(arg_unidad, "MICROS")) {
+        tiempo_us = (long long)valor;
+    } else if (strstr(arg_unidad, "MILISEGUNDOS") || strstr(arg_unidad, "MS")) {
+        tiempo_us = (long long)(valor * 1000.0);
+    } else if (strstr(arg_unidad, "SEGUNDOS") || strstr(arg_unidad, "S")) {
+        tiempo_us = (long long)(valor * 1000000.0);
+    } else if (strstr(arg_unidad, "MINUTOS")) {
+        tiempo_us = (long long)(valor * 60000000.0);
+    } else {
+        fprintf(stderr, "Error: Unidad inválida. Use MICROS, MILISEGUNDOS, SEGUNDOS o MINUTOS.\n");
         return;
+    }
+    
+    // Ejecución cross-platform 
+    if (tiempo_us > 0) {
+#ifdef _WIN32
+        Sleep((DWORD)(tiempo_us / 1000));
+#else
+        usleep((useconds_t)tiempo_us);
+#endif
     }
 }
 
@@ -1658,11 +1813,7 @@ void procesar_sistema(const char *argumento) {
     (void)system(cmd);
 }
 
-/* POSICIONAR CURSOR EN CONSOLA - CROSS-PLATFORM */
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
+// POSICIONAR CURSOR EN CONSOLA - CROSS-PLATFORM
 void nico_posicionar_cursor(int fila, int columna) {
 #ifdef _WIN32
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -1673,4 +1824,737 @@ void nico_posicionar_cursor(int fila, int columna) {
     printf("\033[%d;%dH", fila, columna);
 #endif
     fflush(stdout);
+}
+
+// OCULTARCURSOR / MOSTRARCURSOR
+int cmd_ocultarcursor(const char *linea, CtxBloque *ctx, int linea_actual) {
+    (void)linea; (void)linea_actual;
+#ifdef _WIN32
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hConsole != INVALID_HANDLE_VALUE) {
+        CONSOLE_CURSOR_INFO cci;
+        GetConsoleCursorInfo(hConsole, &cci);
+        cci.bVisible = FALSE;
+        SetConsoleCursorInfo(hConsole, &cci);
+    }
+#else
+    printf("\033[?25l");
+    fflush(stdout);
+#endif
+    ctx->linea_num++;
+    return 0;
+}
+
+int cmd_mostrarcursor(const char *linea, CtxBloque *ctx, int linea_actual) {
+    (void)linea; (void)linea_actual;
+#ifdef _WIN32
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hConsole != INVALID_HANDLE_VALUE) {
+        CONSOLE_CURSOR_INFO cci;
+        GetConsoleCursorInfo(hConsole, &cci);
+        cci.bVisible = TRUE;
+        SetConsoleCursorInfo(hConsole, &cci);
+    }
+#else
+    printf("\033[?25h");
+    fflush(stdout);
+#endif
+    restaurar_terminal_completa();
+    ctx->linea_num++;
+    return 0;
+}
+
+// COMANDO NATIVO: TIEMPOMS($var)
+int cmd_tiempoms(const char *linea, CtxBloque *ctx, int linea_actual) {
+    (void)linea; (void)linea_actual;
+    
+    const char *ptr = linea + 8;
+    while (*ptr == ' ' || *ptr == '\t') ptr++;
+    
+    if (*ptr != '(') {
+        fprintf(stderr, "Error línea %d: Sintaxis inválida. Uso: TIEMPOMS($variable).\n", linea_actual);
+        return -1;
+    }
+    ptr++;
+    while (*ptr == ' ' || *ptr == '\t') ptr++;
+    
+    if (*ptr != '$') {
+        fprintf(stderr, "Error línea %d: El signo '$' es obligatorio. Ej: TIEMPOMS($tiempo).\n", linea_actual);
+        return -1;
+    }
+    ptr++;
+    
+    char nombre[MAX_NOMBRE] = {0};
+    int i = 0;
+    while (*ptr && *ptr != ')' && *ptr != ' ' && *ptr != '\t' && i < MAX_NOMBRE - 1) {
+        nombre[i++] = *ptr++;
+    }
+    nombre[i] = '\0';
+    
+    while (*ptr == ' ' || *ptr == '\t') ptr++;
+    if (*ptr != ')') {
+        fprintf(stderr, "Error línea %d: Falta paréntesis de cierre en TIEMPOMS.\n", linea_actual);
+        return -1;
+    }
+    
+    if (!strlen(nombre)) {
+        fprintf(stderr, "Error línea %d: Variable vacía en TIEMPOMS.\n", linea_actual);
+        return -1;
+    }
+    
+    long long ms = obtener_tiempo_ms();
+    int encontrado = 0;
+
+    if (scope_actual >= 0) {
+        for (int s = scope_actual; s >= 0; s--) {
+            ScopeLocal *scp = &scopes_locales[s];
+            for (int v = 0; v < scp->num_variables; v++) {
+                if (strcmp(scp->variables[v].nombre, nombre) == 0) {
+                    switch (scp->variables[v].tipo) {
+                        case 0: scp->variables[v].valor.valor_entero = (int)ms; break;
+                        case 1: scp->variables[v].valor.valor_sin_signo = (unsigned int)ms; break;
+                        case 2:
+                        case 3: scp->variables[v].valor.valor_decimal = (double)ms; break;
+                        case 4: scp->variables[v].valor.valor_caracter = (char)ms; break;
+                        case 5: scp->variables[v].valor.valor_caracter_sin_signo = (unsigned char)ms; break;
+                    }
+                    encontrado = 1;
+                    goto fin_asignacion_tiempoms;
+                }
+            }
+        }
+    }
+    
+    int idx = buscar_variable(nombre);
+    if (idx >= 0) { variables[idx].valor = (int)ms; encontrado = 1; }
+    else if ((idx = buscar_variable_sin_signo(nombre)) >= 0) {
+        variables_sin_signo[idx].valor = (unsigned int)ms; encontrado = 1;
+    }
+    else if ((idx = buscar_variable_decimal(nombre)) >= 0) {
+        variables_decimal[idx].valor = (double)ms; encontrado = 1;
+    }
+    else if ((idx = buscar_variable_caracter(nombre)) >= 0) {
+        variables_caracter[idx].valor = (char)ms; encontrado = 1;
+    }
+    
+fin_asignacion_tiempoms:
+    if (!encontrado) {
+        fprintf(stderr, "Error línea %d: Variable '$%s' no declarada en scope local ni global.\n", linea_actual, nombre);
+    }
+    
+    ctx->linea_num++;
+    return 0;
+}
+
+// ANCHOTERMINAL / ALTOTERMINAL
+static int obtener_dim_terminal(int tipo) {
+#ifdef _WIN32
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
+        return (tipo == 0) ? (csbi.srWindow.Right - csbi.srWindow.Left + 1)
+                           : (csbi.srWindow.Bottom - csbi.srWindow.Top + 1);
+    }
+#else
+    struct winsize ws;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0) {
+        return (tipo == 0) ? ws.ws_col : ws.ws_row;
+    }
+#endif
+    return 80;
+}
+
+static int cmd_dim_terminal(const char *linea, CtxBloque *ctx, int linea_actual, int tipo_dim) {
+    const char *cmd_name = (tipo_dim == 0) ? "ANCHOTERMINAL" : "ALTOTERMINAL";
+    int cmd_len = strlen(cmd_name); 
+
+    const char *ptr = linea + cmd_len;
+    while (*ptr == ' ' || *ptr == '\t') ptr++;
+
+    if (*ptr != '(') {
+        fprintf(stderr, "Error línea %d: Sintaxis inválida. Uso: %s($variable).\n", linea_actual, cmd_name);
+        return -1;
+    }
+    ptr++; while (*ptr == ' ' || *ptr == '\t') ptr++;
+
+    if (*ptr != '$') {
+        fprintf(stderr, "Error línea %d: El signo '$' es obligatorio. Ej: %s($ancho).\n", linea_actual, cmd_name);
+        return -1;
+    }
+    ptr++;
+
+    char nombre[MAX_NOMBRE] = {0};
+    int i = 0;
+    while (*ptr && *ptr != ')' && !isspace((unsigned char)*ptr) && i < MAX_NOMBRE - 1) {
+        nombre[i++] = *ptr++;
+    }
+    nombre[i] = '\0';
+
+    while (*ptr == ' ' || *ptr == '\t') ptr++;
+    if (*ptr != ')') {
+        fprintf(stderr, "Error línea %d: Falta paréntesis de cierre en %s.\n", linea_actual, cmd_name);
+        return -1;
+    }
+    if (!strlen(nombre)) {
+        fprintf(stderr, "Error línea %d: Variable vacía en %s.\n", linea_actual, cmd_name);
+        return -1;
+    }
+
+    int valor = obtener_dim_terminal(tipo_dim);
+    int encontrado = 0;
+
+    if (scope_actual >= 0) {
+        for (int s = scope_actual; s >= 0; s--) {
+            ScopeLocal *scp = &scopes_locales[s];
+            for (int v = 0; v < scp->num_variables; v++) {
+                if (strcmp(scp->variables[v].nombre, nombre) == 0) {
+                    switch (scp->variables[v].tipo) {
+                        case 0: scp->variables[v].valor.valor_entero = valor; break;
+                        case 1: scp->variables[v].valor.valor_sin_signo = (unsigned int)valor; break;
+                        case 2: case 3: scp->variables[v].valor.valor_decimal = (double)valor; break;
+                        case 4: scp->variables[v].valor.valor_caracter = (char)valor; break;
+                        case 5: scp->variables[v].valor.valor_caracter_sin_signo = (unsigned char)valor; break;
+                    }
+                    encontrado = 1;
+                    goto fin_asignacion_dim;
+                }
+            }
+        }
+    }
+
+    int idx = buscar_variable(nombre);
+    if (idx >= 0) { variables[idx].valor = valor; encontrado = 1; }
+    else if ((idx = buscar_variable_sin_signo(nombre)) >= 0) { variables_sin_signo[idx].valor = (unsigned int)valor; encontrado = 1; }
+    else if ((idx = buscar_variable_decimal(nombre)) >= 0) { variables_decimal[idx].valor = (double)valor; encontrado = 1; }
+    else if ((idx = buscar_variable_caracter(nombre)) >= 0) { variables_caracter[idx].valor = (char)valor; encontrado = 1; }
+
+fin_asignacion_dim:
+    if (!encontrado) {
+        fprintf(stderr, "Error línea %d: Variable '$%s' no declarada.\n", linea_actual, nombre);
+    }
+
+    ctx->linea_num++;
+    return 0;
+}
+
+int cmd_anchoterminal(const char *linea, CtxBloque *ctx, int linea_actual) {
+    return cmd_dim_terminal(linea, ctx, linea_actual, 0);
+}
+
+int cmd_altoterminal(const char *linea, CtxBloque *ctx, int linea_actual) {
+    return cmd_dim_terminal(linea, ctx, linea_actual, 1);
+}
+
+// DIBUJARLINEA / DIBUJARCIRCULO: Primitivas ASCII
+static const char* obtener_patron_dibujo(const char *token) {
+    static char buf[8] = {0};
+    memset(buf, 0, sizeof(buf));
+    while (*token == ' ' || *token == '\t') token++;
+    if (*token == '\0') return " ";
+
+    if (*token == '"' || *token == '\'') {
+        char q = *token++;
+        int i = 0;
+        while (*token && *token != q && i < 6) buf[i++] = *token++;
+        return buf;
+    }
+
+    if (*token == '$') {
+        token++;
+        char nombre[MAX_NOMBRE] = {0};
+        int i = 0;
+        while (*token && *token != ' ' && *token != '\t' && *token != ')' && *token != ',' && 
+               *token != '\r' && *token != '\n' && i < MAX_NOMBRE-1) nombre[i++] = *token++;
+
+        char c = '?';
+        if (scope_actual >= 0) {
+            for (int s = scope_actual; s >= 0; s--) {
+                for (int v = 0; v < scopes_locales[s].num_variables; v++) {
+                    if (strcmp(scopes_locales[s].variables[v].nombre, nombre) == 0) {
+                        switch(scopes_locales[s].variables[v].tipo) {
+                            case 4: c = scopes_locales[s].variables[v].valor.valor_caracter; break;
+                            case 5: c = (char)scopes_locales[s].variables[v].valor.valor_caracter_sin_signo; break;
+                            default: c = (char)scopes_locales[s].variables[v].valor.valor_entero; break;
+                        }
+                        buf[0] = c; buf[1] = '\0';
+                        return buf;
+                    }
+                }
+            }
+        }
+        int idx = buscar_variable(nombre);
+        if (idx >= 0) c = (char)variables[idx].valor;
+        else if ((idx = buscar_variable_caracter(nombre)) >= 0) c = variables_caracter[idx].valor;
+        
+        buf[0] = c; buf[1] = '\0';
+        return buf;
+    }
+
+    int i = 0;
+    while (*token && *token != ',' && *token != ')' && *token != '\r' && *token != '\n' && i < 6)
+        buf[i++] = *token++;
+    buf[i] = '\0';
+    return buf;
+}
+
+// DIBUJARLINEA($col1, $fil1, $col2, $fil2, "patrón")
+int cmd_dibujarlinea(const char *linea, CtxBloque *ctx, int linea_actual) {
+    const char *p = linea + 12;
+    while (*p == ' ' || *p == '\t') p++;
+    if (*p != '(') { fprintf(stderr, "Error línea %d: Uso: DIBUJARLINEA($x1, $y1, $x2, $y2, \"char\").\n", linea_actual); ctx->linea_num++; return 0; }
+    p++;
+
+    const char *fin = strrchr(linea, ')');
+    if (!fin || fin <= p) { fprintf(stderr, "Error línea %d: Falta paréntesis de cierre.\n", linea_actual); ctx->linea_num++; return 0; }
+
+    char buf[MAX_LINEA];
+    int len = (int)(fin - p);
+    if (len >= MAX_LINEA) len = MAX_LINEA - 1;
+    strncpy(buf, p, len); buf[len] = '\0';
+
+    char *token = strtok(buf, ",");
+    double args[4];
+    int i = 0;
+    while (token && i < 4) {
+        int exito = 0;
+        args[i] = evaluar_expresion_completa(token, &exito);
+        if (!exito) { fprintf(stderr, "Error línea %d: Coordenada inválida.\n", linea_actual); ctx->linea_num++; return 0; }
+        i++; token = strtok(NULL, ",");
+    }
+    if (i != 4 || !token) { fprintf(stderr, "Error línea %d: Se esperan 4 coordenadas y un patrón.\n", linea_actual); ctx->linea_num++; return 0; }
+
+    const char *patron = obtener_patron_dibujo(token);
+    int x1 = (int)args[0], y1 = (int)args[1];
+    int x2 = (int)args[2], y2 = (int)args[3];
+    if (x1 <= 0 || y1 <= 0 || x2 <= 0 || y2 <= 0) {
+        fprintf(stderr, "Error línea %d: Coordenadas deben ser positivas.\n", linea_actual);
+        ctx->linea_num++; return 0;
+    }
+
+    int dx = abs(x2 - x1), dy = abs(y2 - y1);
+    int sx = (x1 < x2) ? 1 : -1, sy = (y1 < y2) ? 1 : -1;
+    int err = dx - dy;
+    while (1) {
+        nico_posicionar_cursor(y1, x1);
+        printf("%s", patron);
+        if (x1 == x2 && y1 == y2) break;
+        int e2 = 2 * err;
+        if (e2 > -dy) { err -= dy; x1 += sx; }
+        if (e2 < dx) { err += dx; y1 += sy; }
+    }
+    fflush(stdout);
+    ctx->linea_num++; return 0;
+}
+
+// DIBUJARCIRCULO($col_centro, $fil_centro, $radio, "patrón")
+int cmd_dibujarcirculo(const char *linea, CtxBloque *ctx, int linea_actual) {
+    const char *p = linea + 14;
+    while (*p == ' ' || *p == '\t') p++;
+    if (*p != '(') { fprintf(stderr, "Error línea %d: Uso: DIBUJARCIRCULO($xc, $yc, $r, \"char\").\n", linea_actual); ctx->linea_num++; return 0; }
+    p++;
+
+    const char *fin = strrchr(linea, ')');
+    if (!fin || fin <= p) { fprintf(stderr, "Error línea %d: Falta paréntesis de cierre.\n", linea_actual); ctx->linea_num++; return 0; }
+
+    char buf[MAX_LINEA];
+    int len = (int)(fin - p);
+    if (len >= MAX_LINEA) len = MAX_LINEA - 1;
+    strncpy(buf, p, len); buf[len] = '\0';
+
+    char *token = strtok(buf, ",");
+    double args[3];
+    int i = 0;
+    while (token && i < 3) {
+        int exito = 0;
+        args[i] = evaluar_expresion_completa(token, &exito);
+        if (!exito) { fprintf(stderr, "Error línea %d: Valor inválido.\n", linea_actual); ctx->linea_num++; return 0; }
+        i++; token = strtok(NULL, ",");
+    }
+    if (i != 3 || !token) { fprintf(stderr, "Error línea %d: Se esperan centro, radio y patrón.\n", linea_actual); ctx->linea_num++; return 0; }
+
+    const char *patron = obtener_patron_dibujo(token);
+    int xc = (int)args[0], yc = (int)args[1], r = (int)args[2];
+    if (r <= 0) { fprintf(stderr, "Error línea %d: Radio debe ser positivo.\n", linea_actual); ctx->linea_num++; return 0; }
+
+    int x = 0, y = r;
+    int d = 1 - r;
+    while (y >= x) {
+        nico_posicionar_cursor(yc + y, xc + x); printf("%s", patron);
+        nico_posicionar_cursor(yc + x, xc + y); printf("%s", patron);
+        nico_posicionar_cursor(yc - x, xc + y); printf("%s", patron);
+        nico_posicionar_cursor(yc - y, xc + x); printf("%s", patron);
+        nico_posicionar_cursor(yc - y, xc - x); printf("%s", patron);
+        nico_posicionar_cursor(yc - x, xc - y); printf("%s", patron);
+        nico_posicionar_cursor(yc + x, xc - y); printf("%s", patron);
+        nico_posicionar_cursor(yc + y, xc - x); printf("%s", patron);
+        x++;
+        if (d < 0) d += 2*x + 1;
+        else { y--; d += 2*(x-y) + 1; }
+    }
+    fflush(stdout);
+    ctx->linea_num++; return 0;
+}
+
+// RELLENARRECTANGULO($col1, $fil1, $col2, $fil2, "patrón")
+int cmd_rellenarrectangulo(const char *linea, CtxBloque *ctx, int linea_actual) {
+    const char *cmd = "RELLENARRECTANGULO";
+    const char *p = linea + strlen(cmd);
+    while (*p == ' ' || *p == '\t') p++;
+    if (*p != '(') { fprintf(stderr, "Error línea %d: Uso: RELLENARRECTANGULO($x1, $y1, $x2, $y2, \"char\").\n", linea_actual); ctx->linea_num++; return 0; }
+    p++;
+
+    const char *fin = strrchr(linea, ')');
+    if (!fin || fin <= p) { fprintf(stderr, "Error línea %d: Falta paréntesis de cierre.\n", linea_actual); ctx->linea_num++; return 0; }
+
+    char buf[MAX_LINEA];
+    int len = (int)(fin - p);
+    if (len >= MAX_LINEA) len = MAX_LINEA - 1;
+    strncpy(buf, p, len); buf[len] = '\0';
+
+    char *token = strtok(buf, ",");
+    double args[4];
+    int i = 0;
+    while (token && i < 4) {
+        int exito = 0;
+        args[i] = evaluar_expresion_completa(token, &exito);
+        if (!exito) { fprintf(stderr, "Error línea %d: Coordenada inválida.\n", linea_actual); ctx->linea_num++; return 0; }
+        i++; token = strtok(NULL, ",");
+    }
+    if (i != 4 || !token) { fprintf(stderr, "Error línea %d: Se esperan 4 coordenadas y un patrón.\n", linea_actual); ctx->linea_num++; return 0; }
+
+    const char *patron = obtener_patron_dibujo(token);
+    int x1 = (int)args[0], y1 = (int)args[1];
+    int x2 = (int)args[2], y2 = (int)args[3];
+
+    int min_x = (x1 < x2) ? x1 : x2;
+    int max_x = (x1 > x2) ? x1 : x2;
+    int min_y = (y1 < y2) ? y1 : y2;
+    int max_y = (y1 > y2) ? y1 : y2;
+
+    if (min_x <= 0 || min_y <= 0) {
+        fprintf(stderr, "Error línea %d: Coordenadas deben ser positivas.\n", linea_actual);
+        ctx->linea_num++; return 0;
+    }
+
+    for (int y = min_y; y <= max_y; y++) {
+        nico_posicionar_cursor(y, min_x);
+        for (int x = min_x; x <= max_x; x++) {
+            printf("%s", patron);
+        }
+    }
+    fflush(stdout);
+    ctx->linea_num++; return 0;
+}
+
+// TECLAMANTENIDA($codigo, $resultado)
+int cmd_teclamantenida(const char *linea, CtxBloque *ctx, int linea_actual) {
+    const char *ap = strchr(linea, '(');
+    const char *cp = strrchr(linea, ')');
+    if (!ap || !cp || cp <= ap) {
+        fprintf(stderr, "Error línea %d: Uso: TECLAMANTENIDA($codigo, $resultado).\n", linea_actual);
+        ctx->linea_num++; return 0;
+    }
+
+    char contenido[MAX_LINEA];
+    int len = (int)(cp - ap - 1);
+    if (len <= 0 || len >= MAX_LINEA - 1) {
+        fprintf(stderr, "Error línea %d: Argumentos inválidos.\n", linea_actual);
+        ctx->linea_num++; return 0;
+    }
+    strncpy(contenido, ap + 1, len);
+    contenido[len] = '\0';
+
+    char *coma = strchr(contenido, ',');
+    if (!coma) {
+        fprintf(stderr, "Error línea %d: Falta coma separadora.\n", linea_actual);
+        ctx->linea_num++; return 0;
+    }
+    *coma = '\0';
+    char *arg_cod = contenido;
+    char *arg_res = coma + 1;
+    
+    while(*arg_cod == ' ' || *arg_cod == '\t') arg_cod++;
+    while(*arg_res == ' ' || *arg_res == '\t') arg_res++;
+
+    if (*arg_res != '$') {
+        fprintf(stderr, "Error línea %d: Variable resultado debe empezar con '$'.\n", linea_actual);
+        ctx->linea_num++; return 0;
+    }
+    arg_res++;
+    char nombre_dest[MAX_NOMBRE] = {0};
+    int i = 0;
+    while (*arg_res && *arg_res != ' ' && *arg_res != '\t' && i < MAX_NOMBRE - 1) nombre_dest[i++] = *arg_res++;
+    if (!strlen(nombre_dest)) {
+        fprintf(stderr, "Error línea %d: Variable destino vacía.\n", linea_actual);
+        ctx->linea_num++; return 0;
+    }
+
+    int exito = 0;
+    double val_cod = evaluar_expresion_completa(arg_cod, &exito);
+    if (!exito) {
+        fprintf(stderr, "Error línea %d: Código inválido.\n", linea_actual);
+        ctx->linea_num++; return 0;
+    }
+    int key_code = (int)val_cod;
+
+    // Inicialización de modo raw / no-bloqueante CROSS-PLATFORM
+    if (!raw_init) {
+#ifdef _WIN32
+        // Windows
+        if (!win_console_saved) {
+            h_stdin_win = GetStdHandle(STD_INPUT_HANDLE);
+            GetConsoleMode(h_stdin_win, &orig_mode_in);
+            SetConsoleMode(h_stdin_win, orig_mode_in & ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT | ENABLE_PROCESSED_INPUT));
+            
+            h_stdout_win = GetStdHandle(STD_OUTPUT_HANDLE);
+            GetConsoleMode(h_stdout_win, &orig_mode_out);
+            SetConsoleMode(h_stdout_win, orig_mode_out | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+            
+            win_console_saved = 1;
+        }
+#else
+        // Linux
+        if (!termios_guardado) {
+            tcgetattr(STDIN_FILENO, &orig_termios);
+            termios_guardado = 1;
+        }
+        struct termios t = orig_termios;
+        t.c_lflag &= ~(ICANON | ECHO);
+        t.c_cc[VMIN] = 1;
+        t.c_cc[VTIME] = 0;
+        tcsetattr(STDIN_FILENO, TCSANOW, &t);
+#endif
+        raw_init = 1;
+    }
+
+    static char kb_buf[64];
+    static int kb_len = 0;
+
+    if (kb_len > 32) kb_len = 0;
+
+#ifdef _WIN32
+    #include <conio.h>
+    if (_kbhit()) {
+        if (kb_len < (int)sizeof(kb_buf) - 4) {
+            int ch = _getch();
+            kb_buf[kb_len++] = (char)ch;
+            if (ch == 0 || ch == 224) {
+                kb_buf[kb_len++] = (char)_getch();
+            }
+        }
+    }
+#else
+    struct pollfd pfd = { .fd = STDIN_FILENO, .events = POLLIN };
+    if (poll(&pfd, 1, 0) > 0) {
+        if (kb_len < (int)sizeof(kb_buf) - 4) {
+            ssize_t n = read(STDIN_FILENO, kb_buf + kb_len, sizeof(kb_buf) - kb_len - 4);
+            if (n > 0) kb_len += n;
+        }
+    }
+#endif
+
+#ifdef _WIN32
+    if (kb_len > 16) {
+        memmove(kb_buf, kb_buf + (kb_len - 16), 16);
+        kb_len = 16;
+    }
+#endif
+       int estado = 0;
+
+    // ASCII (32-126): Búsqueda lineal para multi-key polling (juegos)
+    if (key_code >= 32 && key_code <= 126) {
+        for (int i = 0; i < kb_len; i++) {
+            if ((unsigned char)kb_buf[i] == key_code) {
+                estado = 1;
+                memmove(&kb_buf[i], &kb_buf[i+1], kb_len - i - 1);
+                kb_len--;
+                break;
+            }
+        }
+    }
+    // ESCAPE y FLECHAS: Requieren prefijo '\x1B' al inicio del buffer
+    else {
+        while (kb_len > 0 && (unsigned char)kb_buf[0] != '\x1B') {
+            memmove(kb_buf, kb_buf + 1, kb_len - 1);
+            kb_len--;
+        }
+
+        if (kb_len > 0 && kb_buf[0] == '\x1B') {
+            if (key_code == 27) {
+                if (kb_len > 1 && kb_buf[1] == '[') {
+                    int to_consume = (kb_len >= 3) ? 3 : kb_len;
+                    memmove(kb_buf, kb_buf + to_consume, kb_len - to_consume);
+                    kb_len -= to_consume;
+                } else {
+                    estado = 1;
+                    memmove(kb_buf, kb_buf + 1, kb_len - 1); kb_len--;
+                }
+            }
+            else if (key_code == 1001 && kb_len >= 3 && kb_buf[1]=='[' && kb_buf[2]=='A') {
+                estado = 1; memmove(kb_buf, kb_buf+3, kb_len-3); kb_len-=3;
+            }
+            else if (key_code == 1002 && kb_len >= 3 && kb_buf[1]=='[' && kb_buf[2]=='B') {
+                estado = 1; memmove(kb_buf, kb_buf+3, kb_len-3); kb_len-=3;
+            }
+            else if (key_code == 1003 && kb_len >= 3 && kb_buf[1]=='[' && kb_buf[2]=='C') {
+                estado = 1; memmove(kb_buf, kb_buf+3, kb_len-3); kb_len-=3;
+            }
+            else if (key_code == 1004 && kb_len >= 3 && kb_buf[1]=='[' && kb_buf[2]=='D') {
+                estado = 1; memmove(kb_buf, kb_buf+3, kb_len-3); kb_len-=3;
+            }
+        }
+    }
+
+    if (kb_len > 32) {
+        memmove(kb_buf, kb_buf + (kb_len - 32), 32);
+        kb_len = 32;
+    }
+    int encontrado = 0;
+ 
+    if (scope_actual >= 0) {
+        for (int s = scope_actual; s >= 0; s--) {
+            for (int v = 0; v < scopes_locales[s].num_variables; v++) {
+                if (strcmp(scopes_locales[s].variables[v].nombre, nombre_dest) == 0) {
+                    switch (scopes_locales[s].variables[v].tipo) {
+                        case 0: scopes_locales[s].variables[v].valor.valor_entero = estado; break;
+                        case 1: scopes_locales[s].variables[v].valor.valor_sin_signo = (unsigned int)estado; break;
+                        case 2: case 3: scopes_locales[s].variables[v].valor.valor_decimal = (double)estado; break;
+                        case 4: scopes_locales[s].variables[v].valor.valor_caracter = (char)estado; break;
+                        case 5: scopes_locales[s].variables[v].valor.valor_caracter_sin_signo = (unsigned char)estado; break;
+                    }
+                    encontrado = 1; goto fin_asig_tcla;
+                }
+            }
+        }
+    }
+    int idx = buscar_variable(nombre_dest);
+    if (idx >= 0) { variables[idx].valor = estado; encontrado = 1; }
+    else if ((idx = buscar_variable_sin_signo(nombre_dest)) >= 0) { variables_sin_signo[idx].valor = (unsigned int)estado; encontrado = 1; }
+    else if ((idx = buscar_variable_decimal(nombre_dest)) >= 0) { variables_decimal[idx].valor = (double)estado; encontrado = 1; }
+    else if ((idx = buscar_variable_caracter(nombre_dest)) >= 0) { variables_caracter[idx].valor = (char)estado; encontrado = 1; }
+
+fin_asig_tcla:
+    if (!encontrado) {
+        fprintf(stderr, "Error línea %d: Variable '$%s' no declarada.\n", linea_actual, nombre_dest);
+    }
+
+    ctx->linea_num++;
+    return 0;
+}
+
+// COLISIONRECTANGULOS($x1,$y1,$w1,$h1, $x2,$y2,$w2,$h2, $resultado)
+int cmd_colisionrectangulos(const char *linea, CtxBloque *ctx, int linea_actual) {
+    const char *ap = strchr(linea, '(');
+    const char *cp = strrchr(linea, ')');
+    if (!ap || !cp || cp <= ap) {
+        fprintf(stderr, "Error línea %d: Uso: COLISIONRECTANGULOS($x1,$y1,$w1,$h1, $x2,$y2,$w2,$h2, $resultado).\n", linea_actual);
+        ctx->linea_num++; return 0;
+    }
+
+    char contenido[MAX_LINEA];
+    int len = (int)(cp - ap - 1);
+    if (len <= 0 || len >= MAX_LINEA - 1) {
+        fprintf(stderr, "Error línea %d: Argumentos inválidos en COLISIONRECTANGULOS.\n", linea_actual);
+        ctx->linea_num++; return 0;
+    }
+    strncpy(contenido, ap + 1, len); contenido[len] = '\0';
+
+    char *tokens[9];
+    char *p = contenido;
+    int idx = 0;
+    while (idx < 8 && p) {
+        tokens[idx] = p;
+        while (*p && *p != ',') p++;
+        if (*p == ',') { *p = '\0'; p++; while(*p == ' ' || *p == '\t') p++; }
+        idx++;
+    }
+    tokens[8] = p;
+
+    double vals[8]; int exito;
+    for (int i = 0; i < 8; i++) {
+        vals[i] = evaluar_expresion_completa(tokens[i], &exito);
+        if (!exito) {
+            fprintf(stderr, "Error línea %d: Valor numérico inválido en coordenada %d.\n", linea_actual, i+1);
+            ctx->linea_num++; return 0;
+        }
+    }
+
+    char *res_ptr = tokens[8];
+    while (*res_ptr == ' ' || *res_ptr == '\t') res_ptr++;
+    if (*res_ptr != '$') {
+        fprintf(stderr, "Error línea %d: El último argumento debe ser una variable ($resultado).\n", linea_actual);
+        ctx->linea_num++; return 0;
+    }
+    res_ptr++;
+    char nombre_dest[MAX_NOMBRE] = {0}; int i = 0;
+    while (*res_ptr && *res_ptr != ' ' && *res_ptr != '\t' && i < MAX_NOMBRE - 1) nombre_dest[i++] = *res_ptr++;
+    if (!strlen(nombre_dest)) {
+        fprintf(stderr, "Error línea %d: Variable destino vacía.\n", linea_actual);
+        ctx->linea_num++; return 0;
+    }
+
+    // Detección AABB (Axis-Aligned Bounding Box)
+    int colision = (vals[0] < vals[4] + vals[6]) && (vals[0] + vals[2] > vals[4]) &&
+                   (vals[1] < vals[5] + vals[7]) && (vals[1] + vals[3] > vals[5]) ? 1 : 0;
+
+    int encontrado = 0;
+    if (scope_actual >= 0) {
+        for (int s = scope_actual; s >= 0; s--) {
+            for (int v = 0; v < scopes_locales[s].num_variables; v++) {
+                if (strcmp(scopes_locales[s].variables[v].nombre, nombre_dest) == 0) {
+                    switch (scopes_locales[s].variables[v].tipo) {
+                        case 0: scopes_locales[s].variables[v].valor.valor_entero = colision; break;
+                        case 1: scopes_locales[s].variables[v].valor.valor_sin_signo = (unsigned int)colision; break;
+                        case 2: case 3: scopes_locales[s].variables[v].valor.valor_decimal = (double)colision; break;
+                        case 4: scopes_locales[s].variables[v].valor.valor_caracter = (char)colision; break;
+                        case 5: scopes_locales[s].variables[v].valor.valor_caracter_sin_signo = (unsigned char)colision; break;
+                    }
+                    encontrado = 1; goto fin_asig_col;
+                }
+            }
+        }
+    }
+    int idx_var = buscar_variable(nombre_dest);
+    if (idx_var >= 0) { variables[idx_var].valor = colision; encontrado = 1; }
+    else if ((idx_var = buscar_variable_sin_signo(nombre_dest)) >= 0) { variables_sin_signo[idx_var].valor = (unsigned int)colision; encontrado = 1; }
+    else if ((idx_var = buscar_variable_decimal(nombre_dest)) >= 0) { variables_decimal[idx_var].valor = (double)colision; encontrado = 1; }
+    else if ((idx_var = buscar_variable_caracter(nombre_dest)) >= 0) { variables_caracter[idx_var].valor = (char)colision; encontrado = 1; }
+
+fin_asig_col:
+    if (!encontrado) {
+        fprintf(stderr, "Error línea %d: Variable '$%s' no declarada.\n", linea_actual, nombre_dest);
+    }
+    ctx->linea_num++; return 0;
+}
+
+void restaurar_terminal_completa(void) {
+#ifdef _WIN32
+    if (win_console_saved) {
+        if (h_stdin_win != INVALID_HANDLE_VALUE) {
+            SetConsoleMode(h_stdin_win, orig_mode_in);
+        }
+        if (h_stdout_win != INVALID_HANDLE_VALUE) {
+            SetConsoleMode(h_stdout_win, orig_mode_out);
+        }
+        win_console_saved = 0;
+    }
+    printf("\033[0m\033[?25h\r\n");
+    fflush(stdout);
+#else
+    if (termios_guardado) {
+        tcsetattr(STDIN_FILENO, TCSADRAIN, &orig_termios);
+        termios_guardado = 0;
+    } else {
+        struct termios sane;
+        if (tcgetattr(STDIN_FILENO, &sane) == 0) {
+            sane.c_lflag |= (ECHO | ICANON);
+            sane.c_cc[VMIN] = 1;
+            sane.c_cc[VTIME] = 0;
+            tcsetattr(STDIN_FILENO, TCSADRAIN, &sane);
+        }
+    }
+    printf("\033[0m\033[?25h\r\n");
+    fflush(stdout);
+    tcdrain(STDOUT_FILENO);
+#endif
+    raw_init = 0;
 }

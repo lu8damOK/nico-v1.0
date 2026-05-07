@@ -4,7 +4,7 @@ PROGRAMA ControlFlujo
     VARIABLE ENTERA $limite = 4
     VARIABLE ENTERA $i = 0
 BLOQUE PRINCIPAL
-    ESCRIBIR("--- Bucle MIENTRAS ---") SALTO
+    ESCRIBIR("\n--- Bucle MIENTRAS ---") SALTO
     MIENTRAS ($contador MENOR IGUAL $limite) HACER
         ESCRIBIR("  Paso: ") 
         ESCRIBIR("$contador") SALTO
@@ -23,5 +23,6 @@ BLOQUE PRINCIPAL
         ESCRIBIR("Iteración: ") 
         ESCRIBIR("$i") SALTO
     FIN PARA
+    ESCRIBIR("") SALTO
 FIN PRINCIPAL
 FINAL

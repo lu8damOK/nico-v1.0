@@ -1,7 +1,7 @@
 PROGRAMA EjemploTextoEstilos
 
 BLOQUE PRINCIPAL
-    ESCRIBIR("=== Demo de Estilos de Texto en Nico v1.0 ===") SALTO SALTO
+    ESCRIBIR("\n=== Demo de Estilos de Texto en Nico v1.0 ===") SALTO
     
     //Negrita
     TEXTONEGRITA
@@ -32,7 +32,7 @@ BLOQUE PRINCIPAL
     RESETTEXTO
     
     ESCRIBIR("Los estilos se aplican hasta que se usa RESETTEXTO o RESETCOLOR.") SALTO
-    ESCRIBIR("Recomendado: siempre cerrar bloques de estilo para evitar efectos residuales.") SALTO
+    ESCRIBIR("Recomendado: siempre cerrar bloques de estilo para evitar efectos residuales.\n") SALTO
 
 FIN PRINCIPAL
 FINAL

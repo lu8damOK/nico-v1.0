@@ -1,5 +1,5 @@
 /*
- * Nico v1.0 - Intérprete Educativo de Scripting en Español
+ * Nico v1.0.1 - Intérprete Educativo de Scripting en Español
  * @file:         flow.c
  * @author:       Diego Alejandro Majluff (Diseño, Arquitectura y Supervisión)
  * @ai_assist:    Qwen (Alibaba Cloud) - Implementación, Debugging y Optimización
@@ -10,7 +10,7 @@
 #include "nico.h"
 #include <string.h>
 
-/* ENCONTRAR FIN SI */
+// ENCONTRAR FIN SI
 int encontrar_fin_si(int linea_inicio) {
     int nivel = 0;
     for (int i = linea_inicio; i < num_lineas_programa; i++) {
@@ -32,7 +32,7 @@ int encontrar_fin_si(int linea_inicio) {
     return -1;
 }
 
-/* ENCONTRAR SINO */
+// ENCONTRAR SINO
 int encontrar_sino(int linea_inicio) {
     int nivel = 0;
     for (int i = linea_inicio; i < num_lineas_programa; i++) {
@@ -57,7 +57,7 @@ int encontrar_sino(int linea_inicio) {
     return -1;
 }
 
-/* ENCONTRAR FIN MIENTRAS */
+// ENCONTRAR FIN MIENTRAS
 int encontrar_fin_mientras(int linea_inicio, int nivel) {
     int nivel_actual = nivel;
     for (int i = linea_inicio; i < num_lineas_programa; i++) {
@@ -80,7 +80,7 @@ int encontrar_fin_mientras(int linea_inicio, int nivel) {
     return -1;
 }
 
-/* ENCONTRAR FIN REALIZAR */
+// ENCONTRAR FIN REALIZAR
 int encontrar_fin_proceder(int linea_inicio, int nivel) {
     int nivel_actual = nivel;
     for (int i = linea_inicio; i < num_lineas_programa; i++) {
@@ -102,7 +102,7 @@ int encontrar_fin_proceder(int linea_inicio, int nivel) {
     return -1;
 }
 
-/* ENCONTRAR FIN PARA */
+// ENCONTRAR FIN PARA
 int encontrar_fin_para(int linea_inicio, int nivel) {
     int nivel_actual = nivel;
     for (int i = linea_inicio; i < num_lineas_programa; i++) {
@@ -124,7 +124,7 @@ int encontrar_fin_para(int linea_inicio, int nivel) {
     return -1;
 }
 
-/* ENCONTRAR FIN SEGUN */
+// ENCONTRAR FIN SEGUN
 int encontrar_fin_segun(int linea_inicio) {
     int nivel = 0;
     for (int i = linea_inicio; i < num_lineas_programa; i++) {
@@ -143,7 +143,7 @@ int encontrar_fin_segun(int linea_inicio) {
     return -1;
 }
 
-/* ENCONTRAR SIGUIENTE CASO */
+// ENCONTRAR SIGUIENTE CASO
 int encontrar_siguiente_caso(int linea_inicio) {
     int nivel = 0;
     for (int i = linea_inicio; i < num_lineas_programa; i++) {
@@ -168,7 +168,7 @@ int encontrar_siguiente_caso(int linea_inicio) {
     return -1;
 }
 
-/* ENCONTRAR FIN SUBPROGRAMA */
+// ENCONTRAR FIN SUBPROGRAMA
 int encontrar_fin_subprograma(int linea_inicio) {
     int nivel = 0;
     for (int i = linea_inicio; i < num_lineas_programa; i++) {
@@ -190,7 +190,7 @@ int encontrar_fin_subprograma(int linea_inicio) {
     return -1;
 }
 
-/* ENCONTRAR FIN FUNCION */
+// ENCONTRAR FIN FUNCION
 int encontrar_fin_funcion(int linea_inicio) {
     int nivel = 0;
     for (int i = linea_inicio; i < num_lineas_programa; i++) {
@@ -212,7 +212,7 @@ int encontrar_fin_funcion(int linea_inicio) {
     return -1;
 }
 
-/* BUSCAR INICIO SUBPROGRAMA */
+// BUSCAR INICIO SUBPROGRAMA
 int buscar_inicio_subprograma(const char *nombre) {
     for (int i = 0; i < num_subprogramas_registrados; i++) {
         if (strcmp(subprogramas_registrados[i].nombre, nombre) == 0)

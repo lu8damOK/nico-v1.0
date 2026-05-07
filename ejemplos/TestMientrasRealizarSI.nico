@@ -1,7 +1,7 @@
-PROGRAMA test
+PROGRAMA test_mientras_realizar_si
     VARIABLE ENTERA $i = 0
 BLOQUE PRINCIPAL
-
+    ESCRIBIR("") SALTO
     MIENTRAS($i MENOR 20) HACER  
         ESCRIBIR("Contador en MIENTRAS: $i") SALTO
         CALCULAR EN $i = $i + 1

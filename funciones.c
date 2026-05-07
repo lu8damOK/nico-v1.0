@@ -1,11 +1,12 @@
 /*
- * Nico v1.0 - Intérprete Educativo de Scripting en Español
+ * Nico v1.0.1 - Intérprete Educativo de Scripting en Español
  * @file:         funciones.c
  * @author:       Diego Alejandro Majluff (Diseño, Arquitectura y Supervisión)
  * @ai_assist:    Qwen (Alibaba Cloud) - Implementación, Debugging y Optimización
  * @license:      MIT / Personal Use (ver LICENSE)
- * @description:  Gestión de funciones con retorno, scopes locales, 
- *                parámetros, anidamiento y validación estructural runtime.
+ * @description:  Registro y gestión de funciones/subprogramas. Maneja parseo de
+ *                parámetros, llamadas, retorno de valores y orquestación del ciclo
+ *                de vida de scopes locales (crear/eliminar).
  */
 #include "nico.h"
 #include <stdio.h>
@@ -13,12 +14,12 @@
 #include <time.h>
 #include <string.h>
 
-/* Prototipos GPIO (necesarios para el puente de funcionalidad) */
+// Prototipos GPIO (necesarios para el puente de funcionalidad)
 void procesar_gpio_configurar(const char *argumento);
 void procesar_gpio_estado_pin(const char *argumento);
 void procesar_gpio_leer(const char *argumento);
 
-/* VARIABLES GLOBALES DE FUNCIONES */
+// VARIABLES GLOBALES DE FUNCIONES
 FuncionInfo funciones_registradas[MAX_NESTING];
 int num_funciones_registradas = 0;
 double valor_retorno_funcion = 0;
@@ -27,134 +28,7 @@ int si_bloque_verdadero_activo = 0;
 int si_fin_si_pendiente = -1;
 int profundidad_funcion = 0;
 
-/* GESTIÓN DE SCOPES LOCALES */
-ScopeLocal scopes_locales[MAX_SCOPES];
-int scope_actual = -1;
-
-int crear_scope_local(int funcion_idx) {
-    if (!en_funcion) return -1;
-    if (scope_actual + 1 >= MAX_SCOPES) return -1;
-    scope_actual++;
-    scopes_locales[scope_actual].num_variables = 0;
-    scopes_locales[scope_actual].funcion_idx = funcion_idx;
-    return scope_actual;
-}
-
-void eliminar_scope_local(void) {
-    if (scope_actual >= 0 && scope_actual < MAX_SCOPES) {
-        scopes_locales[scope_actual].num_variables = 0;
-        scopes_locales[scope_actual].num_textos = 0;
-        scopes_locales[scope_actual].num_listas = 0;
-        scopes_locales[scope_actual].num_matrices = 0;
-        scope_actual--;
-    }
-    if (scope_actual < -1) scope_actual = -1;
-}
-
-/* GESTIÓN DE LISTAS Y MATRICES LOCALES */
-int buscar_lista_local(const char *nombre, int *tipo, int *indice_pool) {
-    for (int s = scope_actual; s >= 0; s--) {
-        ScopeLocal *scp = &scopes_locales[s];
-        for (int i = 0; i < scp->num_listas; i++) {
-            if (strcmp(scp->nombres_listas[i], nombre) == 0) {
-                if (tipo) *tipo = scp->tipos_listas[i];
-                if (indice_pool) *indice_pool = scp->indices_listas[i];
-                return 1;
-            }
-        }
-    }
-    return 0;
-}
-
-int registrar_lista_local(const char *nombre, int tipo, int indice_pool, int capacidad) {
-    if (scope_actual < 0) return -1;
-    ScopeLocal *scp = &scopes_locales[scope_actual];
-    if (scp->num_listas >= MAX_LISTAS_LOCALES) return -1;
-    const char *clean = (nombre[0] == '$') ? nombre + 1 : nombre;
-    strncpy(scp->nombres_listas[scp->num_listas], clean, MAX_NOMBRE - 1);
-    scp->tipos_listas[scp->num_listas] = tipo;
-    scp->indices_listas[scp->num_listas] = indice_pool;
-    scp->capacidades_listas[scp->num_listas] = capacidad;
-    scp->num_listas++;
-    return 0;
-}
-
-int buscar_matriz_local(const char *nombre, int *tipo, int *indice_pool) {
-    for (int s = scope_actual; s >= 0; s--) {
-        ScopeLocal *scp = &scopes_locales[s];
-        for (int i = 0; i < scp->num_matrices; i++) {
-            if (strcmp(scp->nombres_matrices[i], nombre) == 0) {
-                if (tipo) *tipo = scp->tipos_matrices[i];
-                if (indice_pool) *indice_pool = scp->indices_matrices[i];
-                return 1;
-            }
-        }
-    }
-    return 0;
-}
-
-int registrar_matriz_local(const char *nombre, int tipo, int indice_pool, int filas, int cols) {
-    if (scope_actual < 0) return -1;
-    ScopeLocal *scp = &scopes_locales[scope_actual];
-    if (scp->num_matrices >= MAX_MATRICES_LOCALES) return -1;
-    const char *clean = (nombre[0] == '$') ? nombre + 1 : nombre;
-    strncpy(scp->nombres_matrices[scp->num_matrices], clean, MAX_NOMBRE - 1);
-    scp->tipos_matrices[scp->num_matrices] = tipo;
-    scp->indices_matrices[scp->num_matrices] = indice_pool;
-    scp->filas_matrices[scp->num_matrices] = filas;
-    scp->cols_matrices[scp->num_matrices] = cols;
-    scp->num_matrices++;
-    return 0;
-}
-
-int agregar_variable_local(const char *nombre, int tipo, double valor) {
-    if (scope_actual < 0) {
-        switch(tipo) {
-            case 0: return agregar_variable(nombre, (int)valor);
-            case 1: return agregar_variable_sin_signo(nombre, (unsigned int)valor);
-            case 2: case 3: return agregar_variable_decimal(nombre, valor);
-            case 4: return agregar_variable_caracter(nombre, (char)valor);
-            case 5: return agregar_variable_caracter_sin_signo(nombre, (unsigned char)valor);
-            default: return -1;
-        }
-    }
-    ScopeLocal *scope = &scopes_locales[scope_actual];
-    if (scope->num_variables >= MAX_VARS_LOCALES) return -1;
-    VariableLocal *var = &scope->variables[scope->num_variables];
-    strncpy(var->nombre, nombre, MAX_NOMBRE - 1);
-    var->nombre[MAX_NOMBRE - 1] = '\0';
-    var->tipo = tipo;
-    switch (tipo) {
-        case 0: var->valor.valor_entero = (int)valor; break;
-        case 1: var->valor.valor_sin_signo = (unsigned int)valor; break;
-        case 2: case 3: var->valor.valor_decimal = valor; break;
-        case 4: var->valor.valor_caracter = (char)valor; break;
-        case 5: var->valor.valor_caracter_sin_signo = (unsigned char)valor; break;
-    }
-    scope->num_variables++;
-    return 0;
-}
-
-int buscar_variable_local(const char *nombre, int *tipo, double *valor) {
-    if (scope_actual < 0 || scope_actual >= MAX_SCOPES) return 0;
-    ScopeLocal *scope = &scopes_locales[scope_actual];
-    for (int i = 0; i < scope->num_variables; i++) {
-        if (strcmp(scope->variables[i].nombre, nombre) == 0) {
-            *tipo = scope->variables[i].tipo;
-            switch (scope->variables[i].tipo) {
-                case 0: *valor = (double)scope->variables[i].valor.valor_entero; break;
-                case 1: *valor = (double)scope->variables[i].valor.valor_sin_signo; break;
-                case 2: case 3: *valor = scope->variables[i].valor.valor_decimal; break;
-                case 4: *valor = (double)scope->variables[i].valor.valor_caracter; break;
-                case 5: *valor = (double)scope->variables[i].valor.valor_caracter_sin_signo; break;
-            }
-            return 1;
-        }
-    }
-    return 0;
-}
-
-/* PARSEAR PARAMETROS DE FUNCION */
+// PARSEAR PARAMETROS DE FUNCION
 int parsear_parametros_funcion(const char *linea, char params[][MAX_NOMBRE], int max_params) {
     int num_params = 0;
     const char *ptr = strchr(linea, '(');
@@ -185,7 +59,7 @@ int obtener_tipo_retorno_funcion(const char *linea) {
     return -1;
 }
 
-/* REGISTRO DE FUNCIONES */
+// REGISTRO DE FUNCIONES
 int registrar_todas_las_funciones(void) {
     int error_en_funcion = 0;
     for (int i = 0; i < num_lineas_programa; i++) {
@@ -270,7 +144,7 @@ int buscar_inicio_funcion(const char *nombre) {
     return -1;
 }
 
-/* DECLARAR PARAMETROS DE FUNCION */
+// DECLARAR PARAMETROS DE FUNCION
 int declarar_parametros_funcion(int func_idx, char *args[], int num_args) {
     for (int i = 0; i < num_args && i < funciones_registradas[func_idx].num_params; i++) {
         int exito_arg;
@@ -284,7 +158,7 @@ int declarar_parametros_funcion(int func_idx, char *args[], int num_args) {
     return 0;
 }
 
-/* EJECUTAR RETORNAR */
+// EJECUTAR RETORNAR 
 int ejecutar_retornar(const char *valor, int linea_actual) {
     (void)linea_actual;
     char valor_limpio[MAX_LINEA];
@@ -387,7 +261,7 @@ double llamar_funcion(const char *nombre_func, char *args[], int num_args, int *
     return hay_valor_retorno ? valor_retorno_funcion : 0.0;
 }
 
-/* FUNCIONES ALEATORIAS */
+// FUNCIONES ALEATORIAS
 static int semilla_inicializada = 0;
 
 void inicializar_semilla_aleatoria(void) {

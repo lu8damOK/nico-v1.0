@@ -1,5 +1,5 @@
 /*
- * Nico v1.0 - Intérprete Educativo de Scripting en Español
+ * Nico v1.0.1 - Intérprete Educativo de Scripting en Español
  * @file:         etiquetas.c
  * @author:       Diego Alejandro Majluff (Diseño, Arquitectura y Supervisión)
  * @ai_assist:    Qwen (Alibaba Cloud) - Implementación, Debugging y Optimización
@@ -9,14 +9,14 @@
  */
 #include "nico.h"
 
-/* VARIABLES GLOBALES DE ETIQUETAS */
+// VARIABLES GLOBALES DE ETIQUETAS
 Etiqueta etiquetas[MAX_ETIQUETAS];
 int num_etiquetas = 0;
 
 SubprogramaInfo subprogramas_registrados[MAX_NESTING];
 int num_subprogramas_registrados = 0;
 
-/* FUNCIONES DE ETIQUETAS */
+// FUNCIONES DE ETIQUETAS
 int agregar_etiqueta(const char *nombre, int linea) {
     if (num_etiquetas >= MAX_ETIQUETAS) return -1;
     strncpy(etiquetas[num_etiquetas].nombre, nombre, MAX_NOMBRE - 1);
@@ -33,7 +33,7 @@ int buscar_etiqueta(const char *nombre) {
     return -1;
 }
 
-/* REGISTRAR TODAS LAS ETIQUETAS */
+// REGISTRAR TODAS LAS ETIQUETAS
 int registrar_todas_las_etiquetas(void) {
     for (int i = 0; i < num_lineas_programa; i++) {
         char linea[MAX_LINEA];
@@ -58,7 +58,7 @@ int registrar_todas_las_etiquetas(void) {
     return 0;
 }
 
-/* EJECUTAR SALTO A ETIQUETA */
+// EJECUTAR SALTO A ETIQUETA
 int ejecutar_salto_a_etiqueta(const char *nombre, int linea_actual) {
     int linea_destino = buscar_etiqueta(nombre);
     if (linea_destino == -1) {
@@ -68,7 +68,7 @@ int ejecutar_salto_a_etiqueta(const char *nombre, int linea_actual) {
     return linea_destino - 1;
 }
 
-/* REGISTRAR TODOS LOS SUBPROGRAMAS */
+// REGISTRAR TODOS LOS SUBPROGRAMAS
 int registrar_todos_los_subprogramas(void) {
     for (int i = 0; i < num_lineas_programa; i++) {
         char linea[MAX_LINEA];
@@ -139,7 +139,7 @@ int registrar_todos_los_subprogramas(void) {
     return 0;
 }
 
-/* BUSCAR SUBPROGRAMA INFO */
+// BUSCAR SUBPROGRAMA INFO
 int buscar_subprograma_info(const char *nombre) {
     for (int i = 0; i < num_subprogramas_registrados; i++) {
         if (strcmp(subprogramas_registrados[i].nombre, nombre) == 0) return i;
@@ -147,7 +147,7 @@ int buscar_subprograma_info(const char *nombre) {
     return -1;
 }
 
-/* ASIGNAR ARGUMENTOS A PARAMETROS */
+// ASIGNAR ARGUMENTOS A PARAMETROS
 void asignar_argumentos_a_parametros(char params[][MAX_NOMBRE], int num_params, char *args[], int num_args) {
     for (int i = 0; i < num_params && i < num_args; i++) {
         char *nombre_param = params[i];

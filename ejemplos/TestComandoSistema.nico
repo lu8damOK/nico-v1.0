@@ -3,7 +3,7 @@ PROGRAMA TestSistema
     VARIABLE ENTERA $x = 0
 
 BLOQUE PRINCIPAL
-    MOSTRAR ("=== TEST DE SISTEMA ===") SALTO
+    MOSTRAR ("\n=== TEST DE SISTEMA ===") SALTO
     MOSTRAR ("Este mensaje se ve ANTES de limpiar la pantalla") SALTO
     MOSTRAR ("Presioná ENTER para limpiar...") SALTO
 
@@ -13,7 +13,7 @@ BLOQUE PRINCIPAL
     SISTEMA("clear")
 
     MOSTRAR ("¡Pantalla limpia!") SALTO
-    MOSTRAR ("Programa finalizado") SALTO
+    MOSTRAR ("Programa finalizado\n") SALTO
 
 FIN PRINCIPAL
 FINAL

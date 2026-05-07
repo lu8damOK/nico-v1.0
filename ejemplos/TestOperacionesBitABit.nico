@@ -1,7 +1,7 @@
 PROGRAMA TestBits
 VARIABLE ENTERA SIN SIGNO $x = 0
 BLOQUE PRINCIPAL
-    ESCRIBIR ("=== Operaciones Bit-a-Bit ===") SALTO
+    ESCRIBIR ("\n=== Operaciones Bit-a-Bit ===") SALTO
     
     // Rotaciones
     CALCULAR EN $x = ROTARIZQUIERDA(255, 4)
@@ -40,6 +40,6 @@ BLOQUE PRINCIPAL
     CALCULAR EN $x = DESACTIVARBIT(255, 5)
     ESCRIBIR ("DESACTIVARBIT(255, 5) = $x") SALTO
     
-    ESCRIBIR ("Test de bits completado ✓") SALTO
+    ESCRIBIR ("Test de bits completado ✓\n") SALTO
 FIN PRINCIPAL
 FINAL

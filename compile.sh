@@ -3,7 +3,7 @@
 set -e  # Salir inmediatamente si algún comando falla
 
 echo "╔════════════════════════════════════════╗"
-echo "║   Compilando Nico v1.0                 ║"
+echo "║   Compilando Nico v1.0.1               ║"
 echo "╚════════════════════════════════════════╝"
 echo ""
 
@@ -11,7 +11,7 @@ echo ""
 rm -f nico
 
 # Lista de archivos fuente (centralizada para evitar duplicación)
-SOURCES="main.c io.c expressions.c declaraciones.c funciones.c variables.c cadenas.c etiquetas.c flow.c nico_bits.c validador.c"
+SOURCES="main.c io.c expressions.c declaraciones.c funciones.c variables.c cadenas.c etiquetas.c flow.c nico_bits.c validador.c runtime.c scopes.c leertecla.c"
 
 # Flags base (consistentes en todas las plataformas)
 CFLAGS="-std=c11 -Wall -Wextra -O2 -I. -Wno-stringop-truncation -Wno-unused-result"

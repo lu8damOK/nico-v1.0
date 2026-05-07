@@ -13,10 +13,10 @@ FUNCION DECIMAL calcular_promedio($a, $b, $c)
 FIN FUNCION
 
 BLOQUE PRINCIPAL
-    CALCULAR EN $promedio = calcular_promedio($n1, $n2, $n3)
-
-    ESCRIBIR("Notas: $n1 - $n2 - $n3") SALTO
+    ASIGNAR EN $promedio = calcular_promedio($n1, $n2, $n3)
+    ESCRIBIR("\nNotas: $n1 - $n2 - $n3", DECIMALES(2, 2, 2)) SALTO
     ESCRIBIR("Promedio final: ") 
-    ESCRIBIR("$promedio") SALTO
+    ESCRIBIR("$promedio", DECIMALES(2)) SALTO
+    ESCRIBIR("\n")
 FIN PRINCIPAL
 FINAL

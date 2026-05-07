@@ -9,10 +9,10 @@ BLOQUE PRINCIPAL
     
     // 1. Crear y escribir
     ABRIRARCHIVO($archivo, "registro_nico.txt", ESCRITURA) 
-    ESCRIBIRARCHIVO($archivo, "Registro de prueba Nico v1.0")
+    ESCRIBIRARCHIVO($archivo, "Registro de prueba Nico v1.0.1")
     ESCRIBIRARCHIVO($archivo, "Segunda línea de datos")
     CERRARARCHIVO($archivo)
-    ESCRIBIR("Archivo escrito correctamente.") SALTO
+    ESCRIBIR("\nArchivo escrito correctamente.") SALTO
 
     // 2. Leer
     ABRIRARCHIVO($archivo, "registro_nico.txt", LECTURA)
@@ -35,6 +35,6 @@ BLOQUE PRINCIPAL
     ESCRIBIR("$frase") SALTO
     ESCRIBIR("Longitud: ") 
     ASIGNAR EN $longitud = LONGITUDTEXTO($frase)
-    ESCRIBIR("$longitud") SALTO
+    ESCRIBIR("$longitud\n") SALTO
 FIN PRINCIPAL
 FINAL

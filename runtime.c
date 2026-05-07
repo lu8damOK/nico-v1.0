@@ -1,3 +1,13 @@
+/*
+ * Nico v1.0.1 - Intérprete Educativo de Scripting en Español
+ * @file:         runtime.c
+ * @author:       Diego Alejandro Majluff (Diseño, Arquitectura y Supervisión)
+ * @ai_assist:    Qwen (Alibaba Cloud) - Implementación, Debugging y Optimización
+ * @license:      MIT / Personal Use (ver LICENSE)
+ * @description:  Motor de ejecución en tiempo real. Gestiona el avance de líneas,
+ *                despacho de comandos, control de flujo de bloques y coordinación
+ *                central del intérprete.
+ */
 #include "nico.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -5,6 +15,152 @@
 #include <math.h>
 #include <ctype.h>
 #include <unistd.h>
+
+TextoExtGlobal textos_ext_globales[MAX_TEXTOS_EXT_GLOBALES];
+int num_textos_ext_globales = 0;
+
+// Crear TEXTO EXTENSO global
+int crear_texto_extenso_global(const char *nombre) {
+    if (num_textos_ext_globales >= MAX_TEXTOS_EXT_GLOBALES) return -1;
+    
+    for (int i = 0; i < num_textos_ext_globales; i++) {
+        if (strcmp(textos_ext_globales[i].nombre, nombre) == 0) return -1;
+    }
+    
+    int idx = num_textos_ext_globales++;
+    strncpy(textos_ext_globales[idx].nombre, nombre, MAX_NOMBRE - 1);
+    textos_ext_globales[idx].nombre[MAX_NOMBRE - 1] = '\0';
+    
+    textos_ext_globales[idx].valor = malloc(1);
+    if (!textos_ext_globales[idx].valor) return -1;
+    textos_ext_globales[idx].valor[0] = '\0';
+    textos_ext_globales[idx].longitud = 0;
+    textos_ext_globales[idx].capacidad = 1;
+    
+    return idx;
+}
+
+// Crear TEXTO EXTENSO local
+int crear_texto_extenso_local(const char *nombre, int scope_idx) {
+    if (scope_idx < 0 || scope_idx >= MAX_SCOPES) return -1;
+    ScopeLocal *scp = &scopes_locales[scope_idx];
+    if (scp->num_textos_ext >= MAX_VARS_LOCALES) return -1;
+    
+    for (int i = 0; i < scp->num_textos_ext; i++) {
+        if (strcmp(scp->textos_ext[i].nombre, nombre) == 0) return -1;
+    }
+    
+    int idx = scp->num_textos_ext++;
+    strncpy(scp->textos_ext[idx].nombre, nombre, MAX_NOMBRE - 1);
+    scp->textos_ext[idx].nombre[MAX_NOMBRE - 1] = '\0';
+    
+    scp->textos_ext[idx].valor = malloc(1);
+    if (!scp->textos_ext[idx].valor) return -1;
+    scp->textos_ext[idx].valor[0] = '\0';
+    scp->textos_ext[idx].longitud = 0;
+    scp->textos_ext[idx].capacidad = 1;
+    
+    return idx;
+}
+
+// Buscar TEXTO EXTENSO (prioriza scopes locales, luego globales)
+int buscar_texto_extenso(const char *nombre, int *es_local, int *idx, int *scope_idx) {
+    if (scope_actual >= 0) {
+        for (int s = scope_actual; s >= 0; s--) {
+            ScopeLocal *scp = &scopes_locales[s];
+            for (int i = 0; i < scp->num_textos_ext; i++) {
+                if (strcmp(scp->textos_ext[i].nombre, nombre) == 0) {
+                    if (es_local) *es_local = 1;
+                    if (idx) *idx = i;
+                    if (scope_idx) *scope_idx = s;
+                    return 1;
+                }
+            }
+        }
+    }
+    
+    for (int i = 0; i < num_textos_ext_globales; i++) {
+        if (strcmp(textos_ext_globales[i].nombre, nombre) == 0) {
+            if (es_local) *es_local = 0;
+            if (idx) *idx = i;
+            if (scope_idx) *scope_idx = -1;
+            return 0;
+        }
+    }
+    
+    return -1;
+}
+
+// Asignar valor a TEXTO EXTENSO
+int asignar_texto_extenso_valor(int es_local, int idx, int scope_idx, const char *valor) {
+    char **ptr_valor;
+    size_t *ptr_long, *ptr_cap;
+
+    if (es_local) {
+        if (scope_idx < 0 || scope_idx >= MAX_SCOPES) return -1;
+        ScopeLocal *scp = &scopes_locales[scope_idx];
+        if (idx < 0 || idx >= scp->num_textos_ext) return -1;
+        ptr_valor = &scp->textos_ext[idx].valor;
+        ptr_long  = &scp->textos_ext[idx].longitud;
+        ptr_cap   = &scp->textos_ext[idx].capacidad;
+    } else {
+        if (idx < 0 || idx >= num_textos_ext_globales) return -1;
+        ptr_valor = &textos_ext_globales[idx].valor;
+        ptr_long  = &textos_ext_globales[idx].longitud;
+        ptr_cap   = &textos_ext_globales[idx].capacidad;
+    }
+
+    if (!valor) valor = "";
+    size_t nueva_long = strlen(valor);
+
+    if (nueva_long + 1 > *ptr_cap) {
+        size_t nueva_cap = nueva_long + 64;
+        char *nuevo_ptr = realloc(*ptr_valor, nueva_cap);
+        if (!nuevo_ptr) {
+            fprintf(stderr, "Error: Memoria insuficiente para TEXTO EXTENSO.\n");
+            return -1;
+        }
+        *ptr_valor = nuevo_ptr;
+        *ptr_cap   = nueva_cap;
+    }
+
+    strcpy(*ptr_valor, valor);
+    *ptr_long = nueva_long;
+    return 0;
+}
+
+// Liberar todos los TEXTO EXTENSO de un scope local específico
+void liberar_textos_ext_de_scope(int scope_idx) {
+    if (scope_idx < 0 || scope_idx >= MAX_SCOPES) return;
+    ScopeLocal *scp = &scopes_locales[scope_idx];
+    for (int i = 0; i < scp->num_textos_ext; i++) {
+        if (scp->textos_ext[i].valor) {
+            free(scp->textos_ext[i].valor);
+            scp->textos_ext[i].valor = NULL;
+            scp->textos_ext[i].longitud = 0;
+            scp->textos_ext[i].capacidad = 0;
+        }
+    }
+    scp->num_textos_ext = 0;
+}
+
+// Liberar TODOS los TEXTO EXTENSO (globales + locales residuales)
+void liberar_todos_textos_extensos(void) {
+    for (int i = 0; i < num_textos_ext_globales; i++) {
+        if (textos_ext_globales[i].valor) {
+            free(textos_ext_globales[i].valor);
+            textos_ext_globales[i].valor = NULL;
+        }
+    }
+    num_textos_ext_globales = 0;
+
+    for (int s = 0; s < MAX_SCOPES; s++) {
+        liberar_textos_ext_de_scope(s);
+    }
+}
+
+int cmd_hora_actual(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_fecha_actual(const char *linea, CtxBloque *ctx, int linea_actual);
 
 const CmdEntry dispatch_table[] = {
     { "RESETTEXTO",          cmd_resettexto          },
@@ -25,10 +181,12 @@ const CmdEntry dispatch_table[] = {
     { "VARIABLE CARACTER SIN SIGNO",cmd_var_caracter_sin },
     { "VARIABLE ENTERA",         cmd_var_entera        },
     { "VARIABLE DECIMAL",        cmd_var_decimal       },
+    { "VARIABLE TEXTO EXTENSO", cmd_var_texto_extenso  },
     { "VARIABLE TEXTO",          cmd_var_texto         },
     { "VARIABLE CARACTER",       cmd_var_caracter      },
     { "DECLARAR VARIABLE ENTERA",            cmd_var_entera        },
     { "DECLARAR VARIABLE DECIMAL",           cmd_var_decimal       },
+    { "DECLARAR VARIABLE TEXTO EXTENSO", cmd_var_texto_extenso     },
     { "DECLARAR VARIABLE TEXTO",             cmd_var_texto         },
     { "DECLARAR VARIABLE CARACTER",          cmd_var_caracter      },
     { "DECLARAR VARIABLE ENTERA SIN SIGNO",  cmd_var_entera_sin    },
@@ -94,6 +252,19 @@ const CmdEntry dispatch_table[] = {
     { "CONFIGURARPIN",     cmd_configurar_pin      },
     { "ESTADOPIN",         cmd_estado_pin          },
     { "LEERPIN",           cmd_leer_pin            },
+    { "LEERTECLA",         cmd_leertecla           },
+    { "OCULTARCURSOR",       cmd_ocultarcursor       },
+    { "MOSTRARCURSOR",       cmd_mostrarcursor       },
+    { "TIEMPOMS",            cmd_tiempoms            },
+    { "ANCHOTERMINAL",       cmd_anchoterminal       },
+    { "ALTOTERMINAL",        cmd_altoterminal        },
+    { "DIBUJARLINEA",        cmd_dibujarlinea        },
+    { "DIBUJARCIRCULO",      cmd_dibujarcirculo      },
+    { "RELLENARRECTANGULO",  cmd_rellenarrectangulo  },
+    { "TECLAMANTENIDA",      cmd_teclamantenida      },
+    { "COLISIONRECTANGULOS", cmd_colisionrectangulos },
+    { "HORAACTUAL",   cmd_hora_actual },
+    { "FECHAACTUAL", cmd_fecha_actual },
     { NULL, NULL }
 };
 
@@ -244,33 +415,42 @@ int ejecutar_bloque(CtxBloque *ctx) {
             ctx->linea_num++;
             continue;
         }
-        
+         
         if (comienza_con(linea, "CURSOR") || comienza_con(linea, "POSICIONAR")) {
-            const char *ptr = strchr(linea, '(');
-            if (ptr) {
-                ptr++;
-                char buffer[MAX_LINEA];
-                strncpy(buffer, ptr, MAX_LINEA - 1);
-                buffer[MAX_LINEA - 1] = '\0';
-        
-                char *fin = strchr(buffer, ')');
-                if (fin) *fin = '\0';
-        
-                char *coma = strchr(buffer, ',');
-                if (coma) {
-                    *coma = '\0';
-                    int fila = atoi(buffer);
-                    int columna = atoi(coma + 1);
-            
-                    if (fila > 0 && columna > 0) {
-                        nico_posicionar_cursor(fila, columna);
+            const char *apertura = strchr(linea, '(');
+            const char *cierre = strrchr(linea, ')');
+            if (apertura && cierre && cierre > apertura) {
+                char contenido[MAX_LINEA];
+                int len = (int)(cierre - apertura - 1);
+                if (len > 0 && len < MAX_LINEA - 1) {
+                    strncpy(contenido, apertura + 1, len);
+                    contenido[len] = '\0';
+                    
+                    char *coma = strchr(contenido, ',');
+                    if (coma) {
+                        *coma = '\0';
+                        char *arg_fila = contenido;
+                        char *arg_col  = coma + 1;
+                        
+                        int exito1 = 0, exito2 = 0;
+                        double v_fila = evaluar_expresion_completa(arg_fila, &exito1);
+                        double v_col  = evaluar_expresion_completa(arg_col,  &exito2);
+                        
+                        if (exito1 && exito2) {
+                            int fila = (int)v_fila;
+                            int col  = (int)v_col;
+                            if (fila > 0 && col > 0) {
+                                nico_posicionar_cursor(fila, col);
+                            }
+                        } else {
+                            fprintf(stderr, "Error línea %d: Coordenadas inválidas en CURSOR/POSICIONAR.\n", linea_actual);
+                        }
                     }
                 }
             }
-            ctx->linea_num++;
-            continue;
-        }       
- 
+            ctx->linea_num++; continue;
+        }
+
         if (comienza_con(linea, "ESCRIBIRARCHIVO")) {
             procesar_escribirarchivo(linea + 15);
             ctx->linea_num++;
@@ -388,6 +568,4 @@ int ejecutar_bloque(CtxBloque *ctx) {
         ctx->linea_num++;
     }
     return error_fatal ? -1 : 0; 
-}    
-
-
+}

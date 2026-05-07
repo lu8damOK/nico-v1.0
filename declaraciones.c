@@ -1,16 +1,18 @@
 /*
- * Nico v1.0 - Intérprete Educativo de Scripting en Español
+ * Nico v1.0.1 - Intérprete Educativo de Scripting en Español
  * @file:         declaraciones.c
  * @author:       Diego Alejandro Majluff (Diseño, Arquitectura y Supervisión)
  * @ai_assist:    Qwen (Alibaba Cloud) - Implementación, Debugging y Optimización
  * @license:      MIT / Personal Use (ver LICENSE)
- * @description:  Parsing y registro de variables, constantes, listas y 
- *                matrices globales.
+ * @description:  Parsing y procesamiento de declaraciones. Interpreta y valida
+ *                sintaxis de variables, constantes, listas y matrices, delegando
+ *                el almacenamiento a los pools gestionados en scopes.c.
  */
 #include "nico.h"
 #pragma GCC diagnostic ignored "-Wmisleading-indentation"
 
-/* Secuencias de escape para caracteres */
+int procesar_declaracion_variable_texto_extenso(const char *linea, int linea_actual);
+// Secuencias de escape para caracteres
 static char resolver_escape_char(const char *str) {
     if (!str) return '\0';
     if (str[0] == '\\' && str[1]) {
@@ -28,7 +30,7 @@ static char resolver_escape_char(const char *str) {
     return str[0];
 }
 
-/* VERIFICAR COLISIÓN DE NOMBRES - FUNCIONES AUXILIARES */
+// VERIFICAR COLISIÓN DE NOMBRES - FUNCIONES AUXILIARES
 int variable_ya_existe(const char *nombre) {
     if (en_funcion) return 0;
     
@@ -79,7 +81,7 @@ const char* obtener_tipo_variable_existente(const char *nombre) {
     return "DESCONOCIDO";
 }
 
-/* PARSEAR DECLARACION - Para VARIABLES y CONSTANTES con = valor */
+// PARSEAR DECLARACION - Para VARIABLES y CONSTANTES con = valor
 int parsear_declaracion(const char *ptr, char *nombre, char *valor_texto, double *valor_double, int *hay_asignacion, int *es_texto) {
     *hay_asignacion = 0;
     *es_texto = 0;
@@ -129,7 +131,167 @@ int parsear_declaracion(const char *ptr, char *nombre, char *valor_texto, double
     return 1;
 }
 
-/* FUNCIONES AUXILIARES PARA INICIALIZACIÓN CON VALORES */
+static int parsear_y_agregar_variable_simple(const char *token, int tipo_var, int linea_actual) {
+    // tipo_var: 0=ENTERA, 1=SIN_SIGNO, 2=DECIMAL, 3=DECIMAL_SIN_SIGNO, 4=CARACTER, 5=CARACTER_SIN_SIGNO, 6=TEXTO
+    
+    char nombre[MAX_NOMBRE] = {0};
+    char valor_texto[MAX_TEXTO_LEN] = {0};
+    double valor_num = 0.0;
+    
+    const char *ptr = token;
+    while (*ptr == ' ' || *ptr == '\t') ptr++;
+    
+    if (*ptr != '$') {
+        fprintf(stderr, "Error línea %d: El signo '$' es obligatorio en declaraciones. Ej: $mi_var.\n", linea_actual);
+        return -1;
+    }
+    ptr++;
+    
+    int i = 0;
+    while (*ptr && *ptr != '=' && *ptr != ',' && !isspace((unsigned char)*ptr) && i < MAX_NOMBRE - 1) {
+        if (!es_alnum(*ptr) && *ptr != '_') {
+            fprintf(stderr, "Error línea %d: Nombre de variable inválido: '%c'.\n", linea_actual, *ptr);
+            return -1;
+        }
+        nombre[i++] = *ptr++;
+    }
+    nombre[i] = '\0';
+    
+    if (strlen(nombre) == 0) {
+        fprintf(stderr, "Error línea %d: Nombre de variable vacío.\n", linea_actual);
+        return -1;
+    }
+    
+    if (variable_ya_existe(nombre)) {
+        fprintf(stderr, "Error línea %d: La variable '$%s' ya fue declarada como %s.\n", 
+                linea_actual, nombre, obtener_tipo_variable_existente(nombre));
+        return -1;
+    }
+    
+    while (*ptr == ' ' || *ptr == '\t') ptr++;
+    if (*ptr == '=') {
+        ptr++;
+        while (*ptr == ' ' || *ptr == '\t') ptr++;
+        
+        if (tipo_var == 6) {
+            if (*ptr == '"') {
+                ptr++;
+                i = 0;
+                while (*ptr && *ptr != '"' && i < MAX_TEXTO_LEN - 1) valor_texto[i++] = *ptr++;
+                valor_texto[i] = '\0';
+            } else {
+                fprintf(stderr, "Error línea %d: Variable TEXTO requiere valor entre comillas.\n", linea_actual);
+                return -1;
+            }
+        } else if (tipo_var == 4 || tipo_var == 5) {
+            if (*ptr == '\'') {
+                ptr++;
+                valor_num = (double)(unsigned char)*ptr;
+            } else {
+                valor_num = atof(ptr); 
+            }
+        } else {
+            valor_num = atof(ptr);
+        }
+    }
+    
+    switch (tipo_var) {
+        case 0: 
+            if (scope_actual >= 0) agregar_variable_local(nombre, 0, valor_num);
+            else agregar_variable(nombre, (int)valor_num);
+            break;
+        case 1:
+            if (scope_actual >= 0) agregar_variable_local(nombre, 1, valor_num);
+            else agregar_variable_sin_signo(nombre, (unsigned int)valor_num);
+            break;
+        case 2:
+            if (scope_actual >= 0) agregar_variable_local(nombre, 2, valor_num);
+            else agregar_variable_decimal(nombre, valor_num);
+            break;
+        case 3:
+            if (scope_actual >= 0) agregar_variable_local(nombre, 3, valor_num);
+            else agregar_variable_decimal_sin_signo(nombre, valor_num);
+            break;
+        case 4:
+            if (scope_actual >= 0) agregar_variable_local(nombre, 4, valor_num);
+            else {
+                int idx = num_variables_caracter;
+                if (idx < MAX_VARS_CARACTER) {
+                    strncpy(variables_caracter[idx].nombre, nombre, MAX_NOMBRE - 1);
+                    variables_caracter[idx].nombre[MAX_NOMBRE - 1] = '\0';
+                    variables_caracter[idx].valor = (char)valor_num;
+                    num_variables_caracter++;
+                } else return -1;
+            }
+            break;
+        case 5:
+            if (scope_actual >= 0) agregar_variable_local(nombre, 5, valor_num);
+            else {
+                int idx = num_variables_caracter_sin_signo;
+                if (idx < MAX_VARS_CARACTER_SIN_SIGNO) {
+                    strncpy(variables_caracter_sin_signo[idx].nombre, nombre, MAX_NOMBRE - 1);
+                    variables_caracter_sin_signo[idx].nombre[MAX_NOMBRE - 1] = '\0';
+                    variables_caracter_sin_signo[idx].valor = (unsigned char)valor_num;
+                    num_variables_caracter_sin_signo++;
+                } else return -1;
+            }
+            break;
+        case 6:
+            if (scope_actual >= 0) agregar_texto_local(nombre, valor_texto);
+            else agregar_texto_var(nombre, valor_texto);
+            break;
+        default:
+            return -1;
+    }
+    
+    return 0;
+}
+
+static int procesar_declaracion_multiple(const char *ptr, int tipo_var, int linea_actual) {
+    char token[MAX_LINEA];
+    
+    while (*ptr == ' ' || *ptr == '\t') ptr++;
+    
+    int token_start = 0;
+    for (int i = 0; ptr[i] != '\0'; i++) {
+        char c = ptr[i];
+        
+        if (c == '"' || c == '\'') {
+            char quote = c;
+            i++;
+            while (ptr[i] && ptr[i] != quote) {
+                if (ptr[i] == '\\' && ptr[i+1]) i++;
+                i++;
+            }
+            continue;
+        }
+        
+        if (c == ',') {
+            int len = i - token_start;
+            if (len > 0 && len < MAX_LINEA - 1) {
+                strncpy(token, ptr + token_start, len);
+                token[len] = '\0';
+                if (parsear_y_agregar_variable_simple(token, tipo_var, linea_actual) != 0) {
+                    return -1;
+                }
+            }
+            token_start = i + 1;
+        }
+    }
+    
+    int len = (int)strlen(ptr) - token_start;
+    if (len > 0 && len < MAX_LINEA - 1) {
+        strncpy(token, ptr + token_start, len);
+        token[len] = '\0';
+        if (parsear_y_agregar_variable_simple(token, tipo_var, linea_actual) != 0) {
+            return -1;
+        }
+    }
+    
+    return 0;
+}
+
+// FUNCIONES AUXILIARES PARA INICIALIZACIÓN CON VALORES
 int parsear_valores_lista(const char *ptr, double *valores, int max_valores, int *num_valores) {
     *num_valores = 0;
     while (*ptr == ' ' || *ptr == '\t') ptr++;
@@ -200,7 +362,7 @@ int parsear_valores_matriz(const char *ptr, double valores[MAX_DIMENSION_FILA][M
     return (*ptr == '}') ? 0 : -1;
 }
 
-/* Parsear valores de matriz CARACTER con soporte para 'X' y escapes */
+// Parsear valores de matriz CARACTER con soporte para 'X' y escapes
 int parsear_valores_matriz_caracter(const char *ptr, char valores[MAX_DIMENSION_FILA][MAX_DIMENSION_COLUMNA],
                                     int filas, int columnas, int *filas_leidas, int *columnas_leidas, int sin_signo) {
     *filas_leidas = 0; *columnas_leidas = 0;
@@ -244,7 +406,7 @@ int parsear_valores_matriz_caracter(const char *ptr, char valores[MAX_DIMENSION_
     return (*ptr == '}') ? 0 : -1;
 }
 
-/* VARIABLE ARCHIVO */
+// VARIABLE ARCHIVO
 int procesar_declaracion_variable_archivo(const char *linea, int linea_actual) {
     fase_constantes = 0;
     fase_variables = 1;
@@ -327,7 +489,7 @@ int procesar_declaracion_variable_archivo(const char *linea, int linea_actual) {
     return 0;
 }
 
-/* CONSTANTES */
+// CONSTANTES
 int procesar_declaracion_constante_entera_sin_signo(const char *linea, int linea_actual) {
     const char *ptr = linea;
     if (comienza_con(ptr, "DECLARAR")) { ptr += 8; while (*ptr == ' ' || *ptr == '\t') ptr++; }
@@ -395,16 +557,14 @@ int procesar_declaracion_constante_decimal(const char *linea, int linea_actual) 
     return 0;
 }
 
-/* VARIABLES */
+// VARIABLES
 int procesar_declaracion_variable_entera_sin_signo(const char *linea, int linea_actual) {
     fase_constantes = 0; fase_variables = 1;
     const char *ptr = linea;
     if (comienza_con(ptr, "DECLARAR")) { ptr += 8; while (*ptr == ' ' || *ptr == '\t') ptr++; }
     if (comienza_con(ptr, "VARIABLE ENTERA SIN SIGNO")) { ptr += 25; while (*ptr == ' ' || *ptr == '\t') ptr++; }
-    char nombre[MAX_NOMBRE]; char valor_texto[MAX_TEXTO_LEN]; double valor_double = 0; int hay_asignacion = 0, es_texto = 0;
-    if (!parsear_declaracion(ptr, nombre, valor_texto, &valor_double, &hay_asignacion, &es_texto)) { fprintf(stderr, "Error línea %d.\n", linea_actual); return -1; }
-    if (scope_actual >= 0) agregar_variable_local(nombre, 1, valor_double); else agregar_variable_sin_signo(nombre, (unsigned int)valor_double);
-    return 0;
+    
+    return procesar_declaracion_multiple(ptr, 1, linea_actual); // 1 = SIN SIGNO 
 }
 
 int procesar_declaracion_variable_decimal_sin_signo(const char *linea, int linea_actual) {
@@ -412,10 +572,8 @@ int procesar_declaracion_variable_decimal_sin_signo(const char *linea, int linea
     const char *ptr = linea;
     if (comienza_con(ptr, "DECLARAR")) { ptr += 8; while (*ptr == ' ' || *ptr == '\t') ptr++; }
     if (comienza_con(ptr, "VARIABLE DECIMAL SIN SIGNO")) { ptr += 26; while (*ptr == ' ' || *ptr == '\t') ptr++; }
-    char nombre[MAX_NOMBRE]; char valor_texto[MAX_TEXTO_LEN]; double valor_double = 0; int hay_asignacion = 0, es_texto = 0;
-    if (!parsear_declaracion(ptr, nombre, valor_texto, &valor_double, &hay_asignacion, &es_texto)) { fprintf(stderr, "Error línea %d.\n", linea_actual); return -1; }
-    if (scope_actual >= 0) agregar_variable_local(nombre, 3, valor_double); else agregar_variable_decimal_sin_signo(nombre, valor_double);
-    return 0;
+    
+    return procesar_declaracion_multiple(ptr, 3, linea_actual); // 3 = DECIMAL SIN SIGNO
 }
 
 int procesar_declaracion_variable_caracter_sin_signo(const char *linea, int linea_actual) {
@@ -423,11 +581,8 @@ int procesar_declaracion_variable_caracter_sin_signo(const char *linea, int line
     const char *ptr = linea;
     if (comienza_con(ptr, "DECLARAR")) { ptr += 8; while (*ptr == ' ' || *ptr == '\t') ptr++; }
     if (comienza_con(ptr, "VARIABLE CARACTER SIN SIGNO")) { ptr += 27; while (*ptr == ' ' || *ptr == '\t') ptr++; }
-    char nombre[MAX_NOMBRE]; char valor_texto[MAX_TEXTO_LEN]; double valor_double = 0; int hay_asignacion = 0, es_texto = 0;
-    if (!parsear_declaracion(ptr, nombre, valor_texto, &valor_double, &hay_asignacion, &es_texto)) { fprintf(stderr, "Error línea %d.\n", linea_actual); return -1; }
-    unsigned char valor_char = (es_texto && strlen(valor_texto) > 0) ? (unsigned char)valor_texto[0] : (unsigned char)((int)valor_double);
-    if (scope_actual >= 0) agregar_variable_local(nombre, 5, (double)valor_char); else agregar_variable_caracter_sin_signo(nombre, valor_char);
-    return 0;
+    
+    return procesar_declaracion_multiple(ptr, 5, linea_actual); // 5 = CARACTER SIN SIGNO
 }
 
 int procesar_declaracion_variable_entera(const char *linea, int linea_actual) {
@@ -435,10 +590,8 @@ int procesar_declaracion_variable_entera(const char *linea, int linea_actual) {
     const char *ptr = linea;
     if (comienza_con(ptr, "DECLARAR")) { ptr += 8; while (*ptr == ' ' || *ptr == '\t') ptr++; }
     if (comienza_con(ptr, "VARIABLE ENTERA")) { ptr += 15; while (*ptr == ' ' || *ptr == '\t') ptr++; }
-    char nombre[MAX_NOMBRE]; char valor_texto[MAX_TEXTO_LEN]; double valor_double = 0; int hay_asignacion = 0, es_texto = 0;
-    if (!parsear_declaracion(ptr, nombre, valor_texto, &valor_double, &hay_asignacion, &es_texto)) { fprintf(stderr, "Error línea %d.\n", linea_actual); return -1; }
-    if (scope_actual >= 0) agregar_variable_local(nombre, 0, valor_double); else agregar_variable(nombre, (int)valor_double);
-    return 0;
+    
+    return procesar_declaracion_multiple(ptr, 0, linea_actual); // 0 = ENTERA
 }
 
 int procesar_declaracion_variable_decimal(const char *linea, int linea_actual) {
@@ -446,49 +599,8 @@ int procesar_declaracion_variable_decimal(const char *linea, int linea_actual) {
     const char *ptr = linea;
     if (comienza_con(ptr, "DECLARAR")) { ptr += 8; while (*ptr == ' ' || *ptr == '\t') ptr++; }
     if (comienza_con(ptr, "VARIABLE DECIMAL")) { ptr += 16; while (*ptr == ' ' || *ptr == '\t') ptr++; }
-    char nombre[MAX_NOMBRE]; char valor_texto[MAX_TEXTO_LEN]; double valor_double = 0; int hay_asignacion = 0, es_texto = 0;
-    if (!parsear_declaracion(ptr, nombre, valor_texto, &valor_double, &hay_asignacion, &es_texto)) { fprintf(stderr, "Error línea %d.\n", linea_actual); return -1; }
-    if (scope_actual >= 0) agregar_variable_local(nombre, 2, valor_double); else agregar_variable_decimal(nombre, valor_double);
-    return 0;
-}
-
-#define MAX_POOL_TEXTOS_LOCALES 200 
-static char pool_textos_locales[MAX_POOL_TEXTOS_LOCALES][MAX_TEXTO_LEN];
-static int pool_textos_contador = 0;
-
-int agregar_texto_local(const char *nombre, const char *valor) {
-    if (scope_actual < 0) return agregar_texto_var(nombre, valor);
-    if (scope_actual >= MAX_SCOPES) return -1;
-    ScopeLocal *scp = &scopes_locales[scope_actual];
-    if (scp->num_textos >= MAX_TEXTOS_LOCALES) return -1;
-    if (pool_textos_contador >= MAX_POOL_TEXTOS_LOCALES) return -1;
-    int indice_pool = pool_textos_contador;
-    strncpy(pool_textos_locales[indice_pool], valor ? valor : "", MAX_TEXTO_LEN - 1);
-    pool_textos_locales[indice_pool][MAX_TEXTO_LEN - 1] = '\0';
-    pool_textos_contador++;
-    const char *clean_name = (nombre && nombre[0] == '$') ? nombre + 1 : nombre;
-    strncpy(scp->nombres_textos[scp->num_textos], clean_name, MAX_NOMBRE - 1);
-    scp->nombres_textos[scp->num_textos][MAX_NOMBRE - 1] = '\0';
-    scp->indices_textos[scp->num_textos] = indice_pool;
-    scp->num_textos++;
-    return 0;
-}
-
-int buscar_texto_local(const char *nombre, char *buffer_out) {
-    for (int s = scope_actual; s >= 0; s--) {
-        ScopeLocal *scp = &scopes_locales[s];
-        for (int i = 0; i < scp->num_textos; i++) {
-            if (strcmp(scp->nombres_textos[i], nombre) == 0) {
-                if (buffer_out) {
-                    int idx = scp->indices_textos[i];
-                    strncpy(buffer_out, pool_textos_locales[idx], MAX_TEXTO_LEN - 1);
-                    buffer_out[MAX_TEXTO_LEN - 1] = '\0';
-                }
-                return 1;
-            }
-        }
-    }
-    return 0;
+    
+    return procesar_declaracion_multiple(ptr, 2, linea_actual); // 2 = DECIMAL
 }
 
 int procesar_declaracion_variable_texto(const char *linea, int linea_actual) {
@@ -496,33 +608,67 @@ int procesar_declaracion_variable_texto(const char *linea, int linea_actual) {
     const char *ptr = linea;
     if (comienza_con(ptr, "DECLARAR")) { ptr += 8; while (*ptr == ' ' || *ptr == '\t') ptr++; }
     if (comienza_con(ptr, "VARIABLE TEXTO")) { ptr += 14; while (*ptr == ' ' || *ptr == '\t') ptr++; }
-    char nombre[MAX_NOMBRE]; char valor_texto[MAX_TEXTO_LEN]; double valor_double = 0; int hay_asignacion = 0, es_texto = 0;
-    if (!parsear_declaracion(ptr, nombre, valor_texto, &valor_double, &hay_asignacion, &es_texto)) { fprintf(stderr, "Error linea %d\n", linea_actual); return -1; }
-    if (agregar_texto_local(nombre, valor_texto) != 0) { fprintf(stderr, "Error al declarar variable texto '$%s'.\n", nombre); return -1; }
+    
+    return procesar_declaracion_multiple(ptr, 6, linea_actual); // 6 = TEXTO
+}
+
+// VARIABLE TEXTO EXTENSO (memoria dinámica con malloc)
+int procesar_declaracion_variable_texto_extenso(const char *linea, int linea_actual) {
+    fase_constantes = 0; fase_variables = 1;
+    const char *ptr = linea;
+    
+    if (comienza_con(ptr, "DECLARAR VARIABLE TEXTO EXTENSO")) ptr += 30;
+    else if (comienza_con(ptr, "VARIABLE TEXTO EXTENSO"))    ptr += 22;
+    else { 
+        fprintf(stderr, "Error línea %d: Sintaxis TEXTO EXTENSO inválida.\n", linea_actual); 
+        return -1; 
+    }
+    
+    while (*ptr == ' ' || *ptr == '\t') ptr++;
+    
+    if (*ptr != '$') {
+        fprintf(stderr, "Error línea %d: TEXTO EXTENSO requiere variable con '$'.\n", linea_actual);
+        return -1;
+    }
+    ptr++;
+    
+    char nombre[MAX_NOMBRE];
+    int i = 0;
+    while (es_alnum(*ptr) && i < MAX_NOMBRE - 1) nombre[i++] = *ptr++;
+    nombre[i] = '\0';
+    
+    if (strlen(nombre) == 0) {
+        fprintf(stderr, "Error línea %d: Nombre de variable vacío.\n", linea_actual);
+        return -1;
+    }
+    
+    if (variable_ya_existe(nombre)) {
+        fprintf(stderr, "Error línea %d: La variable '$%s' ya fue declarada.\n", linea_actual, nombre);
+        return -1;
+    }
+    
+    int resultado = (scope_actual < 0) ? 
+        crear_texto_extenso_global(nombre) : 
+        crear_texto_extenso_local(nombre, scope_actual);
+        
+    if (resultado < 0) {
+        fprintf(stderr, "Error línea %d: No se pudo crear TEXTO EXTENSO '$%s'.\n", linea_actual, nombre);
+        return -1;
+    }
+    
     return 0;
 }
 
 int procesar_declaracion_variable_caracter(const char *linea, int linea_actual) {
-    char nombre[MAX_NOMBRE]; char valor_inicial = '\0';
-    const char *ptr = strstr(linea, "VARIABLE CARACTER");
-    if (!ptr) return -1; ptr += 17;
-    while (*ptr == ' ' || *ptr == '\t') ptr++; if (*ptr == '$') ptr++;
-    int i = 0; while (es_alnum(*ptr) && i < MAX_NOMBRE - 1) nombre[i++] = *ptr++; nombre[i] = '\0';
-    if (strlen(nombre) == 0) { fprintf(stderr, "Error línea %d: VARIABLE CARACTER requiere nombre.\n", linea_actual); return -1; }
-    char *igual = strchr(linea, '=');
-    if (igual) { igual++; while (*igual == ' ' || *igual == '\t') igual++; if (*igual == '\'') valor_inicial = *(igual + 1); }
-    if (scope_actual >= 0) agregar_variable_local(nombre, 4, (double)valor_inicial);
-    else {
-        int idx = num_variables_caracter;
-        if (idx < MAX_VARS_CARACTER) {
-            strncpy(variables_caracter[idx].nombre, nombre, MAX_NOMBRE - 1); variables_caracter[idx].nombre[MAX_NOMBRE - 1] = '\0';
-            variables_caracter[idx].valor = valor_inicial; num_variables_caracter++;
-        } else fprintf(stderr, "Error línea %d: Máximo de variables CARACTER alcanzado.\n", linea_actual);
-    }
-    return 0;
+    fase_constantes = 0; fase_variables = 1;
+    const char *ptr = linea;
+    if (comienza_con(ptr, "DECLARAR")) { ptr += 8; while (*ptr == ' ' || *ptr == '\t') ptr++; }
+    if (comienza_con(ptr, "VARIABLE CARACTER")) { ptr += 17; while (*ptr == ' ' || *ptr == '\t') ptr++; }
+    
+    return procesar_declaracion_multiple(ptr, 4, linea_actual); // 4 = CARACTER
 }
 
-/* LISTAS */
+// LISTAS
 int procesar_declaracion_lista_entera_sin_signo(const char *linea, int linea_actual) {
     fase_constantes = 0; fase_variables = 1;
     const char *ptr = linea;
@@ -780,7 +926,7 @@ int procesar_declaracion_lista_caracter_sin_signo(const char *linea, int linea_a
     return 0;
 }
 
-/* MATRICES */
+// MATRICES
 int procesar_declaracion_matriz_entera(const char *linea, int linea_actual) {
     fase_constantes = 0; fase_variables = 1;
     const char *ptr = linea;

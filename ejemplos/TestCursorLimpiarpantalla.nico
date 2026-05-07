@@ -13,6 +13,7 @@ BLOQUE PRINCIPAL
 
     ESPERAR(1000, MILISEGUNDOS)
     ESCRIBIR("Ingresá un caracter y presioná ENTER para finalizar: ")
-    LEERCARACTER($var)  
+    LEERCARACTER($var) 
+    ESCRIBIR("") SALTO 
 FIN PRINCIPAL
 FINAL

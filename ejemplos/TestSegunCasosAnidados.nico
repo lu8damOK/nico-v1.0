@@ -4,11 +4,11 @@ VARIABLE ENTERA $ext = 0
 VARIABLE ENTERA $int = 0
 
 BLOQUE PRINCIPAL
-    ESCRIBIR("=== TEST SEGUN CASO ANIDADO ===") SALTO
+    ESCRIBIR("\n=== TEST SEGUN CASO ANIDADO ===") SALTO
 
     // 1. Externo=1, Interno=1 → Debe entrar en 1.1
-    CALCULAR EN $ext = 1
-    CALCULAR EN $int = 1
+    ASIGNAR EN $ext = 1
+    ASIGNAR EN $int = 1
     ESCRIBIR("Test 1 (Ext=1, Int=1):")
     SEGUN CASO ($ext)
         CASO 1
@@ -108,6 +108,6 @@ BLOQUE PRINCIPAL
             CORTE
     FIN SEGUN
 
-    ESCRIBIR("=== FIN TEST ===") SALTO
+    ESCRIBIR("=== FIN TEST ===\n") SALTO
 FIN PRINCIPAL
 FINAL

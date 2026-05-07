@@ -1,5 +1,5 @@
 /*
- * Nico v1.0 - Intérprete Educativo de Scripting en Español
+ * Nico v1.0.1 - Intérprete Educativo de Scripting en Español
  * @file:         expressions.c
  * @author:       Diego Alejandro Majluff (Diseño, Arquitectura y Supervisión)
  * @ai_assist:    Qwen (Alibaba Cloud) - Implementación, Debugging y Optimización
@@ -15,7 +15,9 @@
 #include <stdlib.h>
 #include <time.h>
 
-/* OBTENER VALOR DE TOKEN */
+extern double evaluar_expresion_completa(const char *expr, int *exito);
+
+// OBTENER VALOR DE TOKEN
 double obtener_valor_token(const char *token, int *exito) {
     *exito = 0;
     if (!token || !strlen(token)) return 0;
@@ -24,7 +26,7 @@ double obtener_valor_token(const char *token, int *exito) {
     token_limpio[MAX_LINEA - 1] = '\0';
     limpiar_string(token_limpio);
     
-    /* DETECTAR LLAMADA A FUNCIÓN */
+    // DETECTAR LLAMADA A FUNCIÓN
     char *parentesis = strchr(token_limpio, '(');
     if (parentesis) {
         char nombre_func[MAX_NOMBRE];
@@ -75,7 +77,7 @@ double obtener_valor_token(const char *token, int *exito) {
         for (int k = 0; k < num_args; k++) free(args[k]);
     }
 
-    /* DETECTAR ACCESO A MATRIZ */
+    // DETECTAR ACCESO A MATRIZ
     char *corchete1 = strchr(token_limpio, '[');
     if (corchete1 && token_limpio[0] == '$') {
         char *cierre1 = strchr(corchete1 + 1, ']');
@@ -173,7 +175,7 @@ double obtener_valor_token(const char *token, int *exito) {
             return 0;
         }
     }  
-    /* DETECTAR ACCESO A LISTA ($lista[indice]) */
+    // DETECTAR ACCESO A LISTA ($lista[indice])
     char *corchete = strchr(token_limpio, '[');
     if (corchete && token_limpio[0] == '$') {
         char nombre_lista[MAX_NOMBRE];
@@ -309,33 +311,33 @@ double obtener_valor_token(const char *token, int *exito) {
         return 0; 
     }
     
-    /* CARACTER LITERAL */
+    // CARACTER LITERAL
     if (token_limpio[0] == '\'' && strlen(token_limpio) >= 3) {
         *exito = 1;
         return (double)(unsigned char)token_limpio[1];
     }
     
-    /* NÚMERO HEXADECIMAL */
+    // NÚMERO HEXADECIMAL
     if (strlen(token_limpio) > 2 && token_limpio[0] == '0' &&
         (token_limpio[1] == 'x' || token_limpio[1] == 'X')) {
         *exito = 1;
         return (double)strtoul(token_limpio + 2, NULL, 16);
     }
     
-    /* NÚMERO OCTAL */
+    // NÚMERO OCTAL
     if (strlen(token_limpio) > 1 && token_limpio[0] == '0' &&
         token_limpio[1] >= '0' && token_limpio[1] <= '7') {
         *exito = 1;
         return (double)strtoul(token_limpio, NULL, 8);
     }
     
-    /* NÚMERO LITERAL */
+    // NÚMERO LITERAL
     if (es_numero(token_limpio) || (token_limpio[0] == '-' && es_numero(token_limpio + 1))) {
         *exito = 1;
         return atof(token_limpio);
     }
     
-    /* VARIABLE ($nombre sin corchetes) */
+    // VARIABLE ($nombre sin corchetes)
     if (token_limpio[0] == '$') {
         char nombre[MAX_NOMBRE];
         limpiar_nombre(token_limpio, nombre, MAX_NOMBRE);
@@ -389,7 +391,7 @@ double obtener_valor_token(const char *token, int *exito) {
         return 0;
     }
     
-    /* BUSCAR SIN $ */
+    // BUSCAR SIN $
     int tipo_local_fallback;
     double valor_local_fallback;
     if (buscar_variable_local(token_limpio, &tipo_local_fallback, &valor_local_fallback)) {
@@ -409,7 +411,7 @@ double obtener_valor_token(const char *token, int *exito) {
     return 0;
 } 
 
-/* BUSCAR PALABRA CLAVE */
+// BUSCAR PALABRA CLAVE
 char* buscar_palabra_clave(char *str, const char *palabra) {
     char *pos = strstr(str, palabra);
     while (pos) {
@@ -423,199 +425,128 @@ char* buscar_palabra_clave(char *str, const char *palabra) {
     return NULL;
 }
 
-/* EVALUAR CONDICION SIMPLE */
+// Elimina paréntesis externos si envuelven TODA la subcadena
+static void limpiar_parentesis_externos(char *s) {
+    if (!s) return;
+    limpiar_string(s);
+    int len = strlen(s);
+    if (len < 2 || s[0] != '(' || s[len-1] != ')') return;
+    
+    int bal = 0;
+    int es_externo = 1;
+    for (int i = 0; i < len; i++) {
+        if (s[i] == '(') bal++;
+        else if (s[i] == ')') bal--;
+        if (bal == 0 && i < len - 1) { es_externo = 0; break; }
+    }
+    
+    if (es_externo) {
+        memmove(s, s + 1, len - 2);
+        s[len - 2] = '\0';
+        limpiar_string(s);
+    }
+}
+
+// EVALUAR CONDICIÓN SIMPLE (comparaciones)
 int evaluar_condicion_simple(const char *condicion, int *exito) {
     *exito = 0;
     char cond_copy[MAX_LINEA];
     strncpy(cond_copy, condicion, MAX_LINEA - 1);
     cond_copy[MAX_LINEA - 1] = '\0';
     limpiar_string(cond_copy);
-    
-    char *partes = buscar_palabra_clave(cond_copy, "MAYOR IGUAL");
-    if (partes) {
-        char *fin_op = partes + 11;
-        *partes = '\0';
-        char *izq = cond_copy;
-        char *der = fin_op;
-        limpiar_string(izq);
-        limpiar_string(der);
-        int exito1, exito2;
-        double val_izq = obtener_valor_token(izq, &exito1);
-        double val_der = obtener_valor_token(der, &exito2);
-        if (exito1 && exito2) { *exito = 1; return (val_izq >= val_der) ? 1 : 0; }
-        return 0;
-    }
-    
-    partes = buscar_palabra_clave(cond_copy, "MENOR IGUAL");
-    if (partes) {
-        char *fin_op = partes + 11;
-        *partes = '\0';
-        char *izq = cond_copy;
-        char *der = fin_op;
-        limpiar_string(izq);
-        limpiar_string(der);
-        int exito1, exito2;
-        double val_izq = obtener_valor_token(izq, &exito1);
-        double val_der = obtener_valor_token(der, &exito2);
-        if (exito1 && exito2) { *exito = 1; return (val_izq <= val_der) ? 1 : 0; }
-        return 0;
-    }
-    
-    partes = buscar_palabra_clave(cond_copy, "DIFERENTE");
-    if (partes) {
-        char *fin_op = partes + 9;
-        *partes = '\0';
-        char *izq = cond_copy;
-        char *der = fin_op;
-        limpiar_string(izq);
-        limpiar_string(der);
-        int exito1, exito2;
-        double val_izq = obtener_valor_token(izq, &exito1);
-        double val_der = obtener_valor_token(der, &exito2);
-        if (exito1 && exito2) { *exito = 1; return (val_izq != val_der) ? 1 : 0; }
-        return 0;
-    }
-    
-    partes = buscar_palabra_clave(cond_copy, "IGUAL");
-    if (partes) {
-        char *fin_op = partes + 5;
-        *partes = '\0';
-        char *izq = cond_copy;
-        char *der = fin_op;
-        limpiar_string(izq);
-        limpiar_string(der);
-        int exito1, exito2;
-        double val_izq = obtener_valor_token(izq, &exito1);
-        double val_der = obtener_valor_token(der, &exito2);
-        if (exito1 && exito2) { *exito = 1; return (val_izq == val_der) ? 1 : 0; }
-        return 0;
-    }
-    
-    partes = buscar_palabra_clave(cond_copy, "MAYOR");
-    if (partes) {
-        char *fin_op = partes + 5;
-        *partes = '\0';
-        char *izq = cond_copy;
-        char *der = fin_op;
-        limpiar_string(izq);
-        limpiar_string(der);
-        int exito1, exito2;
-        double val_izq = obtener_valor_token(izq, &exito1);
-        double val_der = obtener_valor_token(der, &exito2);
-        if (exito1 && exito2) { *exito = 1; return (val_izq > val_der) ? 1 : 0; }
-        return 0;
-    }
-    
-    partes = buscar_palabra_clave(cond_copy, "MENOR");
-    if (partes) {
-        char *fin_op = partes + 5;
-        *partes = '\0';
-        char *izq = cond_copy;
-        char *der = fin_op;
-        limpiar_string(izq);
-        limpiar_string(der);
-        int exito1, exito2;
-        double val_izq = obtener_valor_token(izq, &exito1);
-        double val_der = obtener_valor_token(der, &exito2);
-        if (exito1 && exito2) { *exito = 1; return (val_izq < val_der) ? 1 : 0; }
-        return 0;
-    }
-   
-     if (strchr(cond_copy, ' ') != NULL && strlen(cond_copy) > 3) {
-        char *primer_espacio = strchr(cond_copy, ' ');
-        if (primer_espacio && *(primer_espacio + 1) != '\0' && *(primer_espacio + 1) != ' ') {
-            fprintf(stderr, "Error de sintáxis: Operador relacional no reconocido en condición: '%s'.\n", condicion);
-            fprintf(stderr, "Operadores válidos: MENOR, MAYOR, IGUAL, DIFERENTE, MENOR IGUAL, MAYOR IGUAL.\n");
-            *exito = 0;
-            if (modo_estricto) {
-                exit(1);
+
+    char *partes, *izq, *der;
+    int e_izq, e_der;
+    double v_izq, v_der;
+
+    const char* ops[] = {"MAYOR IGUAL", "MENOR IGUAL", "DIFERENTE", "IGUAL", "MAYOR", "MENOR"};
+    int op_lens[] = {11, 11, 9, 5, 5, 5};
+
+    for (int i = 0; i < 6; i++) {
+        partes = strstr(cond_copy, ops[i]);
+        if (partes) {
+            *partes = '\0';
+            der = partes + op_lens[i];
+            izq = cond_copy;
+            limpiar_parentesis_externos(izq);
+            limpiar_parentesis_externos(der);
+            
+            v_izq = obtener_valor_token(izq, &e_izq);
+            v_der = evaluar_expresion_completa(der, &e_der);
+            
+            if (e_izq && e_der) {
+                *exito = 1;
+                switch(i) {
+                    case 0: return v_izq >= v_der;
+                    case 1: return v_izq <= v_der;
+                    case 2: return v_izq != v_der;
+                    case 3: return v_izq == v_der;
+                    case 4: return v_izq > v_der;
+                    case 5: return v_izq < v_der;
+                }
             }
+            if (!e_izq) fprintf(stderr, "No se pudo evaluar el lado IZQUIERDO de '%s'. Verificá variables, funciones o sintaxis.\n", ops[i]);
+            if (!e_der) fprintf(stderr, "No se pudo evaluar el lado DERECHO de '%s'.\n", ops[i]);
+            *exito = 0;
             return 0;
         }
     }
-    
-    int exito_val;
-    double valor = obtener_valor_token(condicion, &exito_val);
-    if (exito_val) { *exito = 1; return (valor != 0) ? 1 : 0; }
-    *exito = 0; 
-    return 0;
+
+    int e_val;
+    double val = obtener_valor_token(condicion, &e_val);
+    if (e_val) { *exito = 1; return (val != 0); }
+    fprintf(stderr, "Condición o expresión inválida: '%s'.\n", condicion);
+    fprintf(stderr, "Verificá operadores (MENOR, MAYOR, IGUAL, MENOR IGUAL, MAYOR IGUAL, DIFERENTE, Y, O) y que las variables lleven '$'.\n");
+    *exito = 0; return 0;
 }
 
-/* EVALUAR CONDICION */
+// EVALUAR CONDICIÓN (maneja O / Y + paréntesis anidados)
 int evaluar_condicion(const char *linea, int *exito) {
-    *exito = 1;
-    char buf[MAX_LINEA];
-    strncpy(buf, linea, MAX_LINEA - 1);
-    buf[MAX_LINEA - 1] = '\0';
-    limpiar_string(buf);
+    *exito = 0;
+    char cond_copy[MAX_LINEA];
+    strncpy(cond_copy, linea, MAX_LINEA - 1);
+    cond_copy[MAX_LINEA - 1] = '\0';
+    limpiar_string(cond_copy);
+    limpiar_parentesis_externos(cond_copy);
 
-    int len_buf = strlen(buf);
-    while (len_buf > 2 && buf[0] == '(' && buf[len_buf-1] == ')') {
-        int depth = 0;
-        int envuelve_todo = 1;
-        for (int i = 0; i < len_buf; i++) {
-            if (buf[i] == '(') depth++;
-            else if (buf[i] == ')') depth--;
-            if (depth == 0 && i < len_buf - 1) {
-                envuelve_todo = 0;
-                break;
-            }
-        }
-        if (envuelve_todo) {
-            memmove(buf, buf + 1, len_buf - 2);
-            buf[len_buf - 2] = '\0';
-            len_buf = strlen(buf);
-        } else {
-            break;
-        }
-    }
-
-    int depth = 0;
-    int last_or = -1, last_and = -1;
-    for (int i = 0; buf[i]; i++) {
-        if (buf[i] == '(') depth++;
-        else if (buf[i] == ')') depth--;
-        else if (depth == 0) {
-            if (i > 0 && buf[i] == 'O' && buf[i-1] == ' ' && (buf[i+1] == ' ' || buf[i+1] == '\0')) {
-                last_or = i;
-            }
-            else if (i > 0 && buf[i] == 'Y' && buf[i-1] == ' ' && (buf[i+1] == ' ' || buf[i+1] == '\0')) {
-                last_and = i;
-            }
-        }
-    }
-
-    int split = (last_or != -1) ? last_or : last_and;
-    if (split != -1) {
-        char izq[MAX_LINEA], der[MAX_LINEA];
+    char *p_o = strstr(cond_copy, " O ");
+    if (p_o) {
+        *p_o = '\0';
+        char *izq = cond_copy;
+        char *der = p_o + 3;
+        limpiar_parentesis_externos(izq);
+        limpiar_parentesis_externos(der);
         
-        strncpy(izq, buf, split);
-        izq[split] = '\0';
-        strcpy(der, buf + split + 1);
-        
-        limpiar_string(izq);
-        limpiar_string(der);
-
-        int e_izq, res_izq = evaluar_condicion(izq, &e_izq);
-        if (!e_izq) { *exito = 0; return 0; }
-
-        if (last_or != -1) { // O (OR)
-            if (res_izq) return 1;
-            int e_der, res_der = evaluar_condicion(der, &e_der);
-            if (!e_der) { *exito = 0; return 0; }
-            return res_der;
-        } else { // Y (AND)
-            if (!res_izq) return 0;
-            int e_der, res_der = evaluar_condicion(der, &e_der);
-            if (!e_der) { *exito = 0; return 0; }
-            return res_der;
-        }
+        int e1, r1 = evaluar_condicion(izq, &e1);
+        int e2, r2 = evaluar_condicion(der, &e2);
+        if (e1 && e2) { *exito = 1; return r1 || r2; }
+        if (!e1) fprintf(stderr, "Falló subcondión IZQUIERDA del O: '%s'.\n", izq);
+        if (!e2) fprintf(stderr, "Falló subcondición DERECHA del O: '%s'.\n", der);
+        *exito = 0;
+        return 0;
     }
 
-    return evaluar_condicion_simple(buf, exito);
+    char *p_y = strstr(cond_copy, " Y ");
+    if (p_y) {
+        *p_y = '\0';
+        char *izq = cond_copy;
+        char *der = p_y + 3;
+        limpiar_parentesis_externos(izq);
+        limpiar_parentesis_externos(der);
+        
+        int e1, r1 = evaluar_condicion(izq, &e1);
+        int e2, r2 = evaluar_condicion(der, &e2);
+        if (e1 && e2) { *exito = 1; return r1 && r2; }
+        if (!e1) fprintf(stderr, "Falló subcondión IZQUIERDA del Y: '%s'.\n", izq);
+        if (!e2) fprintf(stderr, "Falló subcondición DERECHA del Y: '%s'.\n", der);
+        *exito = 0;
+        return 0;
+    }
+
+    return evaluar_condicion_simple(cond_copy, exito);
 }
 
-/* WRAPPERS PARA OPERACIONES BINARIAS */
+// WRAPPERS PARA OPERACIONES BINARIAS
 double nico_bity(double a, double b) {
     if (a < 0) a = 0;
     else if (a > 4294967295.0) a = 4294967295.0;
@@ -684,7 +615,7 @@ double nico_contarbits(double a) {
     return (double)nico_contar_bits((unsigned int)a);
 }
 
-/* EVALUAR EXPRESION COMPLETA */
+// EVALUAR EXPRESION COMPLETA
 double evaluar_expresion_completa(const char *expr, int *exito) {
     *exito = 0;
     if (!expr || !strlen(expr)) return 0;
@@ -718,7 +649,7 @@ double evaluar_expresion_completa(const char *expr, int *exito) {
         while (*ptr == ' ') ptr++;
     }
     
-    /* PROCESAR PRIMER TOKEN O FUNCION */
+    // PROCESAR PRIMER TOKEN O FUNCION
     if (strncmp(ptr, "PI()", 4) == 0) {
         resultado = 3.14159265358979;
         ptr += 4;
@@ -997,7 +928,7 @@ double evaluar_expresion_completa(const char *expr, int *exito) {
         *exito = 1;
     }
 
-    /* FUNCIONES MATEMÁTICAS */
+    // FUNCIONES MATEMÁTICAS
     else if (strncmp(ptr, "NUMEROPI()", 10) == 0) {
         resultado = nico_numeropi(); ptr += 10;
     }
@@ -1224,6 +1155,26 @@ double evaluar_expresion_completa(const char *expr, int *exito) {
         }
     }
 
+    else if (strncmp(ptr, "SIGMOIDE(", 9) == 0) {
+        ptr += 9;
+        char arg[MAX_LINEA] = "";
+        int i = 0;
+        int nivel = 1;
+        while (*ptr && nivel > 0 && i < MAX_LINEA - 1) {
+            if (*ptr == '(') nivel++;
+            else if (*ptr == ')') nivel--;
+            if (nivel > 0) arg[i++] = *ptr;
+            ptr++;
+        }
+        arg[i] = '\0';
+        int exito_func;
+        double valor = evaluar_expresion_completa(arg, &exito_func);
+        if (exito_func) {
+            resultado = 1.0 / (1.0 + exp(-valor));
+        }
+        *exito = 1;
+    }
+
     else if (strncmp(ptr, "BITNO(", 6) == 0) {
         ptr += 6;
         char arg[MAX_LINEA] = "";
@@ -1256,6 +1207,7 @@ double evaluar_expresion_completa(const char *expr, int *exito) {
         if (exito_arg) { resultado = nico_invertirbytes(valor_arg); *exito = 1;}
         else { fprintf(stderr, "Error: No se pudo evaluar argumento de INVERTIRBYTES.\n"); return 0; }
     }
+
     else if (strncmp(ptr, "CONTARBITS(", 11) == 0) {
         ptr += 11;
         char arg[MAX_LINEA] = "";
@@ -1291,7 +1243,7 @@ double evaluar_expresion_completa(const char *expr, int *exito) {
         if(e1 && e2) { resultado = nico_bito(v1, v2); *exito = 1; }
     }
 
-    /* OPERADORES BITWISE */
+    // OPERADORES BITWISE
     else if (strncmp(ptr, "BITXOR(", 7) == 0) {
         ptr += 7;
         char a1[MAX_LINEA]="", a2[MAX_LINEA]=""; int i=0, n=1;
@@ -1399,6 +1351,7 @@ double evaluar_expresion_completa(const char *expr, int *exito) {
         resultado = evaluar_expresion_completa(subexpr, &exito_sub);
         if (!exito_sub) {
             fprintf(stderr, "Error: No se pudo evaluar subexpresion '%s'.\n", subexpr);
+            profundidad_eval--;
             return 0;
         }
     }
@@ -1431,13 +1384,14 @@ double evaluar_expresion_completa(const char *expr, int *exito) {
         resultado = obtener_valor_token(token, &exito_val);
         if (!exito_val) {
             fprintf(stderr, "Error: No se pudo evaluar '%s'.\n", token);
+            profundidad_eval--; 
             return 0;
         }
     }
     
     resultado *= signo;
     
-    /* PROCESAR OPERADORES ARITMÉTICOS BÁSICOS */
+    // PROCESAR OPERADORES ARITMÉTICOS BÁSICOS
     while (*ptr) {
         while (*ptr == ' ') ptr++;
         if (!*ptr) break;
@@ -1489,14 +1443,14 @@ double evaluar_expresion_completa(const char *expr, int *exito) {
                 resultado /= valor;
             }
         else if (op == '%') {
-            if ((int)valor == 0) { fprintf(stderr, "Error: División por cero en modulo\n"); return 0; }
+            if ((int)valor == 0) { fprintf(stderr, "Error: División por cero en módulo.\n"); return 0; }
                 resultado = (int)resultado % (int)valor;
             if (resultado < 0) resultado += (int)valor;
         }
         else if (op == '^') { resultado = pow(resultado, valor); }
     }
 
-    /* PROCESAR OPERADORES BINARIOS */
+    // PROCESAR OPERADORES BINARIOS
     const char *op_names[] = {
         "BITY", "BITO", "BITXOR", 
         "DESPLAZARIZQUIERDA", "DESPLAZARDERECHA",
@@ -1545,9 +1499,11 @@ double evaluar_expresion_completa(const char *expr, int *exito) {
                 else if (strcmp(op_name, "DESACTIVARBIT") == 0) resultado_binario = nico_desactivarbit(val_izq, val_der);
                 
                 *exito = 1;
+                profundidad_eval--;
                 return resultado_binario;
             } else {
                 fprintf(stderr, "Error: No se pudo evaluar operando en %s.\n", op_name);
+                profundidad_eval--;
                 return 0;
             }
         }
@@ -1557,7 +1513,7 @@ double evaluar_expresion_completa(const char *expr, int *exito) {
     return resultado;
 }
 
-/* IMPLEMENTACIONES DE FUNCIONES MATEMÁTICAS */
+// IMPLEMENTACIONES DE FUNCIONES MATEMÁTICAS
 double nico_seno(double x) { return sin(x); }
 double nico_coseno(double x) { return cos(x); }
 double nico_tangente(double x) { return tan(x); }
@@ -1586,3 +1542,4 @@ double nico_redondear_entero(double x) { return round(x); }
 double nico_quitar_decimal(double x) { return trunc(x); }
 double nico_maximo(double a, double b) { return (a > b) ? a : b; }
 double nico_minimo(double a, double b) { return (a < b) ? a : b; }
+double nico_sigmoide(double x) { return 1.0 / (1.0 + exp(-x)); }

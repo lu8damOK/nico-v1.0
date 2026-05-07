@@ -2,7 +2,7 @@
 setlocal EnableDelayedExpansion
 chcp 65001 >nul
 echo ========================================
-echo   Compilando Nico v1.0 para Windows 11
+echo  Compilando Nico v1.0.1 para Windows 1x
 echo ========================================
 echo.
 
@@ -10,7 +10,7 @@ echo.
 where gcc >nul 2>&1
 if %errorlevel% neq 0 (
     echo [ERROR] gcc no encontrado.
-    echo Instale MinGW-w64 y agregue la carpeta bin al PATH.
+    echo Instalá MinGW-w64 y agregá la carpeta bin al PATH.
     echo https://github.com/niXman/mingw-builds-binaries/releases
     pause
     exit /b 1
@@ -24,7 +24,8 @@ for %%f in (*.c) do (
 
 gcc -o nico.exe %CFILES% ^
     -std=c11 -O2 -Wall -Wextra -Wno-stringop-truncation -Wno-unused-parameter ^
-    -lm -lpthread ^
+    -lm -lwinpthread ^
+    -D_POSIX_C_SOURCE=200809L ^
     -DWIN32_LEAN_AND_MEAN ^
     -include win_compat.h ^
     -I. 2>compile_errors.txt
@@ -49,7 +50,7 @@ if exist nico.exe (
 
 echo.
 echo ========================================
-echo   ¡Listo! Use: nico.exe archivo.nico
+echo   ¡Listo! Usá: nico.exe archivo.nico
 echo ========================================
 endlocal
 pause

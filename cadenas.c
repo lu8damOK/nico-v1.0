@@ -1,13 +1,11 @@
 /*
- * Nico v1.0 - Intérprete Educativo de Scripting en Español
+ * Nico v1.0.1 - Intérprete Educativo de Scripting en Español
  * @file:         cadenas.c
  * @author:       Diego Alejandro Majluff (Diseño, Arquitectura y Supervisión)
  * @ai_assist:    Qwen (Alibaba Cloud) - Implementación, Debugging y Optimización
  * @license:      MIT / Personal Use (ver LICENSE)
- * @description:  Motor nativo de manipulación de cadenas de texto. Implementa búsqueda,
- *                comparación, conversión de tipos, extracción, reemplazo, transformación
- *                de caso, división y repetición. Gestiona el parsing seguro de argumentos
- *                y la ejecución de funciones/comandos de texto integrados en el lenguaje.
+ * @description:  Biblioteca de manipulación de texto. Provee operaciones nativas
+ *                (COPIARTEXTO, LONGITUD, MAYUSCULAS, REEMPLAZAR, DIVIDIR, etc.).
  */
 #define _DEFAULT_SOURCE
 #include "nico.h"
@@ -16,7 +14,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 
-/* ELIMINAR COMENTARIOS */
+// ELIMINAR COMENTARIOS
 void eliminar_comentarios(char *linea) {
     if (!linea) return;
     int dentro_comillas = 0;
@@ -37,7 +35,7 @@ void eliminar_comentarios(char *linea) {
     }
 }
 
-/* IMPLEMENTACIONES C DE BAJO NIVEL */
+// IMPLEMENTACIONES C DE BAJO NIVEL
 double nico_longitud_texto(const char *texto) {
     if (!texto) return 0;
     return (double)strlen(texto);
@@ -300,16 +298,6 @@ double ejecutar_funcion_cadena(const char *nombre_func, char *args[], int num_ar
 }
 
 int ejecutar_comando_cadena(const char *nombre_cmd, char *args[], int num_args) {
-    /*if (strcmp(nombre_cmd, "COPIARTEXTO") == 0 && num_args == 2) {
-        char destino_nombre[MAX_NOMBRE], origen_buf[MAX_TEXTO_LEN];
-        limpiar_nombre(args[0], destino_nombre, MAX_NOMBRE);
-        if (!obtener_texto_para_cadena(args[1], origen_buf, MAX_TEXTO_LEN)) return -1;
-        
-        int idx = buscar_texto_var(destino_nombre);
-        if (idx < 0) return -1;
-        return nico_copiar_texto(texto_vars[idx].valor, origen_buf, MAX_TEXTO_LEN);
-    }*/
-
     if (strcmp(nombre_cmd, "COPIARTEXTO") == 0 && num_args == 2) {
         char destino_nombre[MAX_NOMBRE], origen_buf[MAX_TEXTO_LEN];
         limpiar_nombre(args[0], destino_nombre, MAX_NOMBRE);
@@ -320,7 +308,6 @@ int ejecutar_comando_cadena(const char *nombre_cmd, char *args[], int num_args) 
             nico_copiar_texto(texto_vars[idx].valor, origen_buf, MAX_TEXTO_LEN);
             return 0;
         }
-        // 🔗 FALLBACK LOCAL (mapeo a pool)
         if (scope_actual >= 0) {
             int idx_pool = -1;
             for (int s = scope_actual; s >= 0; s--) {
@@ -348,14 +335,6 @@ int ejecutar_comando_cadena(const char *nombre_cmd, char *args[], int num_args) 
         if (idx < 0) return -1;
         return nico_concatenar_texto(texto_vars[idx].valor, origen_buf, MAX_TEXTO_LEN);
     }
-    /*else if (strcmp(nombre_cmd, "MAYUSCULAS") == 0 && num_args == 1) {
-        char nombre[MAX_NOMBRE];
-        limpiar_nombre(args[0], nombre, MAX_NOMBRE);
-        int idx = buscar_texto_var(nombre);
-        if (idx < 0) return -1;
-        return nico_a_mayusculas(texto_vars[idx].valor);
-    }*/
-
     else if (strcmp(nombre_cmd, "MAYUSCULAS") == 0 && num_args == 1) {
         char nombre[MAX_NOMBRE];
         limpiar_nombre(args[0], nombre, MAX_NOMBRE);

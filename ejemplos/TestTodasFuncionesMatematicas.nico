@@ -16,6 +16,7 @@ PROGRAMA TestFuncionesMatematicas
 BLOQUE PRINCIPAL
 
     // CONSTANTES MATEMÁTICAS
+    ESCRIBIR("") SALTO
     ESCRIBIR("╔════════════════════════════════════════╗") SALTO
     ESCRIBIR("║   CONSTANTES MATEMÁTICAS               ║") SALTO
     ESCRIBIR("╚════════════════════════════════════════╝") SALTO
@@ -220,6 +221,6 @@ BLOQUE PRINCIPAL
     ESCRIBIR ("╔════════════════════════════════════════╗") SALTO
     ESCRIBIR ("║   FIN DEL TEST DE FUNCIONES            ║") SALTO
     ESCRIBIR ("╚════════════════════════════════════════╝") SALTO
-
+    ESCRIBIR("") SALTO
 FIN PRINCIPAL
 FINAL

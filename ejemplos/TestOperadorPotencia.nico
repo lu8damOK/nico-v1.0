@@ -10,7 +10,7 @@ PROGRAMA TestPotencia
     CONSTANTE TEXTO $txtabajo = "=== Fin TEST POTENCIA ==="
 
 BLOQUE PRINCIPAL
-
+    ESCRIBIR("") SALTO
     ESCRIBIR("$txtarriba") SALTO
     
     CALCULAR EN $resultado = 2 ^ 3
@@ -29,6 +29,6 @@ BLOQUE PRINCIPAL
     ESCRIBIR ("2 ^ 3 * 2 = $resultado (esperado: 16)") SALTO
 
     ESCRIBIR("$txtabajo") SALTO
-
+    ESCRIBIR("") SALTO
 FIN PRINCIPAL
 FINAL

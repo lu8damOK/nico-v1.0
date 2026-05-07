@@ -1,6 +1,7 @@
 PROGRAMA TestColores
 
 BLOQUE PRINCIPAL
+    ESCRIBIR("") SALTO
     // Texto normal
     ESCRIBIR("Texto normal") SALTO
     
@@ -17,15 +18,16 @@ BLOQUE PRINCIPAL
     ESCRIBIR("Texto en verde") SALTO
     
     // Resetear colores 
-    RESETCOLOR()
+    RESETCOLOR
     ESCRIBIR("Texto normal otra vez") SALTO
     
     // Combinar colores 
     COLORTEXTO(amarillo)
     COLORFONDO(azul)
-    ESCRIBIR ("Texto amarillo sobre fondo azul") SALTO
+    ESCRIBIR ("Texto amarillo sobre fondo azul")
     
     // Resetear
-    RESETCOLOR()
+    RESETCOLOR
+    ESCRIBIR("\n") SALTO
 FIN PRINCIPAL
 FINAL

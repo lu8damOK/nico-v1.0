@@ -4,6 +4,7 @@ PROGRAMA TestSaltos
 
 BLOQUE PRINCIPAL
     // TEST 1: SALTO BÁSICO
+    ESCRIBIR("") SALTO
     MOSTRAR ("=== TEST 1: SALTO BÁSICO ===") SALTO
     MOSTRAR ("1. Inicio del programa") SALTO
 
@@ -63,6 +64,7 @@ BLOQUE PRINCIPAL
     MOSTRAR ("") SALTO
     MOSTRAR ("=== TEST 4: FINAL ===") SALTO
     MOSTRAR ("9. Última línea antes de FINAL") SALTO
+    ESCRIBIR("") SALTO
 FIN PRINCIPAL
 FINAL
 

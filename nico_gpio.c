@@ -1,5 +1,5 @@
 /*
- * Nico v1.0 - Intérprete Educativo de Scripting en Español
+ * Nico v1.0.1 - Intérprete Educativo de Scripting en Español
  * @file:         nico_gpio.c
  * @author:       Diego Alejandro Majluff (Diseño, Arquitectura y Supervisión)
  * @ai_assist:    Qwen (Alibaba Cloud) - Implementación, Debugging y Optimización
@@ -16,12 +16,12 @@
 #include <string.h>
 #include <unistd.h>
 
-/* DETECCIÓN DE LIBGPIOD */
+// DETECCIÓN DE LIBGPIOD
 #ifdef HAVE_LIBGPIOD
 #include <gpiod.h>
 #endif
 
-/* VARIABLES GLOBALES */
+// VARIABLES GLOBALES
 #ifdef HAVE_LIBGPIOD
 struct gpiod_chip *nico_chip = NULL;
 struct gpiod_line_request *nico_requests[40] = {NULL};
@@ -30,7 +30,7 @@ struct gpiod_line_request *nico_requests[40] = {NULL};
 static int gpio_inicializado = 0;
 static int gpio_disponible = 0;
 
-/* VERIFICAR DISPONIBILIDAD */
+// VERIFICAR DISPONIBILIDAD
 int gpio_verificar_disponibilidad(void) {
     if (gpio_disponible != 0) {
         return gpio_disponible;
@@ -119,7 +119,7 @@ int parsear_estado_si_no(const char *ptr) {
     return -1;
 }
 
-/* CONFIGURAR LÍNEA GPIO */
+// CONFIGURAR LÍNEA GPIO
 #ifdef HAVE_LIBGPIOD
 static int configurar_linea_gpio(int pin, int output) {
     (void)pin;
@@ -163,7 +163,7 @@ static int configurar_linea_gpio(int pin, int output) {
 }
 #endif
 
-/* COMANDOS GPIO */
+// COMANDOS GPIO
 void procesar_gpio_configurar(const char *argumento) {
     if (!gpio_verificar_disponibilidad()) {
         fprintf(stderr, "Error: GPIO no disponible.\n");

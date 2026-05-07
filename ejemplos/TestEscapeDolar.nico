@@ -4,7 +4,7 @@ PROGRAMA TestEscapeDolar
 
 BLOQUE PRINCIPAL
     // Mostrar $ como caracter literal (con escape)
-    ESCRIBIR("El precio es \$100") SALTO
+    ESCRIBIR("\nEl precio es \$100") SALTO
 
     // Mostrar valor de variable (sin escape)
     ESCRIBIR("El valor es $precio") SALTO
@@ -13,6 +13,6 @@ BLOQUE PRINCIPAL
     ESCRIBIR("Precio: \$ $precio") SALTO
 
     // Mostrar texto con $ al final
-    ESCRIBIR("Costo total: \$50") SALTO
+    ESCRIBIR("Costo total: \$50\n") SALTO
 FIN PRINCIPAL
 FINAL

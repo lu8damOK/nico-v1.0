@@ -12,9 +12,9 @@ SUBPROGRAMA Sumar
 FIN SUBPROGRAMA
 
 BLOQUE PRINCIPAL
-    ESCRIBIR ("Inicio del programa") SALTO
+    ESCRIBIR ("\nInicio del programa") SALTO
     LLAMAR A Saludar
     LLAMAR A Sumar
-    ESCRIBIR ("Después de sumar, \$x es: $x") SALTO
+    ESCRIBIR ("Después de sumar, \$x es: $x\n") SALTO
 FIN PRINCIPAL
 FINAL

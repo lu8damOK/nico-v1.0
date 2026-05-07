@@ -33,7 +33,7 @@ FUNCION ENTERA moverHanoi($n, $origen, $auxiliar, $destino)
 FIN FUNCION
 
 BLOQUE PRINCIPAL
-    ESCRIBIR ("=== TEST TORRE DE HANOI ===") SALTO
+    ESCRIBIR ("\n=== TEST TORRE DE HANOI ===") SALTO
     ESCRIBIR ("") SALTO
     
     ESCRIBIR ("Resolviendo con $discos discos:") SALTO
@@ -64,6 +64,6 @@ BLOQUE PRINCIPAL
     FIN SI
     
     ESCRIBIR ("") SALTO
-    ESCRIBIR ("=== Test Hanoi Finalizado ===") SALTO
+    ESCRIBIR ("=== Test Hanoi Finalizado ===\n") SALTO
 FIN PRINCIPAL
 FINAL
