@@ -117,7 +117,13 @@ int parsear_declaracion(const char *ptr, char *nombre, char *valor_texto, double
         valor_texto[i] = '\0';
     } else if (*ptr == '\'') {
         ptr++;
-        *valor_double = (double)(unsigned char)*ptr;
+        int j = 0;
+        while (*ptr && *ptr != '\'' && j < MAX_TEXTO_LEN - 1) {
+            valor_texto[j++] = *ptr++;
+        }
+        valor_texto[j] = '\0';
+        *valor_double = (double)(unsigned char)valor_texto[0];
+        if (*ptr == '\'') ptr++;
     } else {
         char num_str[MAX_LINEA];
         i = 0;
@@ -127,7 +133,6 @@ int parsear_declaracion(const char *ptr, char *nombre, char *valor_texto, double
         num_str[i] = '\0';
         *valor_double = atof(num_str);
     }
-    
     return 1;
 }
 
@@ -494,13 +499,48 @@ int procesar_declaracion_constante_entera_sin_signo(const char *linea, int linea
     const char *ptr = linea;
     if (comienza_con(ptr, "DECLARAR")) { ptr += 8; while (*ptr == ' ' || *ptr == '\t') ptr++; }
     if (comienza_con(ptr, "CONSTANTE ENTERA SIN SIGNO")) { ptr += 26; while (*ptr == ' ' || *ptr == '\t') ptr++; }
+
+    char token[MAX_LINEA];
+    const char *p = ptr;
     
-    char nombre[MAX_NOMBRE]; char valor_texto[MAX_TEXTO_LEN]; double valor_double = 0;
-    int hay_asignacion = 0, es_texto = 0;
-    if (!parsear_declaracion(ptr, nombre, valor_texto, &valor_double, &hay_asignacion, &es_texto)) { fprintf(stderr, "Error linea %d\n", linea_actual); return -1; }
-    if (!hay_asignacion) { fprintf(stderr, "Error línea %d: Constante requiere asignación.\n", linea_actual); return -1; }
-    if (variable_ya_existe(nombre)) { fprintf(stderr, "ADVERTENCIA línea %d: La constante '$%s' YA EXISTE como %s.\n", linea_actual, nombre, obtener_tipo_variable_existente(nombre)); fprintf(stderr, "   Sugerencia: Usá un nombre diferente para evitar colisiones\n"); }
-    if (agregar_constante_sin_signo(nombre, (unsigned int)valor_double) < 0) { fprintf(stderr, "Error línea %d\n", linea_actual); return -1; }
+    while (*p) {
+        while (*p == ' ' || *p == '\t') p++;
+        if (!*p) break;
+
+        const char *end = p;
+        int en_comilla = 0; char tipo_comilla = 0;
+        while (*end) {
+            if ((*end == '"' || *end == '\'') && !(end > p && *(end-1) == '\\')) {
+                if (!en_comilla) { en_comilla = 1; tipo_comilla = *end; }
+                else if (*end == tipo_comilla) en_comilla = 0;
+            }
+            if (!en_comilla && *end == ',') break;
+            end++;
+        }
+
+        int len = end - p;
+        if (len > 0 && len < MAX_LINEA) {
+            strncpy(token, p, len);
+            token[len] = '\0';
+
+            char n[MAX_NOMBRE]; char vt[MAX_TEXTO_LEN]; double vd = 0; int ha=0, et=0;
+            if (!parsear_declaracion(token, n, vt, &vd, &ha, &et) || !ha) {
+                fprintf(stderr, "Error línea %d: Sintaxis inválida o falta asignación en constante ENTERA SIN SIGNO.\n", linea_actual);
+                return -1;
+            }
+            if (variable_ya_existe(n)) { 
+                fprintf(stderr, "ADVERTENCIA línea %d: La constante '$%s' YA EXISTE como %s.\n", linea_actual, n, obtener_tipo_variable_existente(n));
+                fprintf(stderr, "   Sugerencia: Usá un nombre diferente para evitar colisiones\n"); 
+            }
+            if (agregar_constante_sin_signo(n, (unsigned int)vd) < 0) {
+                fprintf(stderr, "Error línea %d: No se pudo registrar constante ENTERA SIN SIGNO '$%s'.\n", linea_actual, n);
+                return -1;
+            }
+        }
+
+        p = end;
+        if (*p == ',') p++;
+    }
     return 0;
 }
 
@@ -508,12 +548,48 @@ int procesar_declaracion_constante_decimal_sin_signo(const char *linea, int line
     const char *ptr = linea;
     if (comienza_con(ptr, "DECLARAR")) { ptr += 8; while (*ptr == ' ' || *ptr == '\t') ptr++; }
     if (comienza_con(ptr, "CONSTANTE DECIMAL SIN SIGNO")) { ptr += 27; while (*ptr == ' ' || *ptr == '\t') ptr++; }
-    char nombre[MAX_NOMBRE]; char valor_texto[MAX_TEXTO_LEN]; double valor_double = 0;
-    int hay_asignacion = 0, es_texto = 0;
-    if (!parsear_declaracion(ptr, nombre, valor_texto, &valor_double, &hay_asignacion, &es_texto)) { fprintf(stderr, "Error línea %d.\n", linea_actual); return -1; }
-    if (!hay_asignacion) { fprintf(stderr, "Error línea %d: Constante requiere asignación.\n", linea_actual); return -1; }
-    if (variable_ya_existe(nombre)) { fprintf(stderr, "ADVERTENCIA línea %d: La constante '$%s' YA EXISTE como %s.\n", linea_actual, nombre, obtener_tipo_variable_existente(nombre)); fprintf(stderr, "   Sugerencia: Usá un nombre diferente para evitar colisiones\n"); }
-    if (agregar_constante_decimal_sin_signo(nombre, valor_double) < 0) { fprintf(stderr, "Error línea %d.\n", linea_actual); return -1; }
+
+    char token[MAX_LINEA];
+    const char *p = ptr;
+    
+    while (*p) {
+        while (*p == ' ' || *p == '\t') p++;
+        if (!*p) break;
+
+        const char *end = p;
+        int en_comilla = 0; char tipo_comilla = 0;
+        while (*end) {
+            if ((*end == '"' || *end == '\'') && !(end > p && *(end-1) == '\\')) {
+                if (!en_comilla) { en_comilla = 1; tipo_comilla = *end; }
+                else if (*end == tipo_comilla) en_comilla = 0;
+            }
+            if (!en_comilla && *end == ',') break;
+            end++;
+        }
+
+        int len = end - p;
+        if (len > 0 && len < MAX_LINEA) {
+            strncpy(token, p, len);
+            token[len] = '\0';
+
+            char n[MAX_NOMBRE]; char vt[MAX_TEXTO_LEN]; double vd = 0; int ha=0, et=0;
+            if (!parsear_declaracion(token, n, vt, &vd, &ha, &et) || !ha) {
+                fprintf(stderr, "Error línea %d: Sintaxis inválida o falta asignación en constante DECIMAL SIN SIGNO.\n", linea_actual);
+                return -1;
+            }
+            if (variable_ya_existe(n)) { 
+                fprintf(stderr, "ADVERTENCIA línea %d: La constante '$%s' YA EXISTE como %s.\n", linea_actual, n, obtener_tipo_variable_existente(n));
+                fprintf(stderr, "Sugerencia: Usá un nombre diferente para evitar colisiones.\n"); 
+            }
+            if (agregar_constante_decimal_sin_signo(n, vd) < 0) {
+                fprintf(stderr, "Error línea %d: No se pudo registrar constante DECIMAL SIN SIGNO '$%s'.\n", linea_actual, n);
+                return -1;
+            }
+        }
+
+        p = end;
+        if (*p == ',') p++;
+    }
     return 0;
 }
 
@@ -521,12 +597,48 @@ int procesar_declaracion_constante_texto(const char *linea, int linea_actual) {
     const char *ptr = linea;
     if (comienza_con(ptr, "DECLARAR")) { ptr += 8; while (*ptr == ' ' || *ptr == '\t') ptr++; }
     if (comienza_con(ptr, "CONSTANTE TEXTO")) { ptr += 15; while (*ptr == ' ' || *ptr == '\t') ptr++; }
-    char nombre[MAX_NOMBRE]; char valor_texto[MAX_TEXTO_LEN]; double valor_double = 0;
-    int hay_asignacion = 0, es_texto = 0;
-    if (!parsear_declaracion(ptr, nombre, valor_texto, &valor_double, &hay_asignacion, &es_texto)) { fprintf(stderr, "Error línea %d.\n", linea_actual); return -1; }
-    if (!hay_asignacion) { fprintf(stderr, "Error línea %d: Constante requiere asignación.\n", linea_actual); return -1; }
-    if (variable_ya_existe(nombre)) { fprintf(stderr, "ADVERTENCIA línea %d: La constante '$%s' YA EXISTE como %s.\n", linea_actual, nombre, obtener_tipo_variable_existente(nombre)); fprintf(stderr, "   Sugerencia: Usá un nombre diferente para evitar colisiones\n"); }
-    if (agregar_texto_constante(nombre, valor_texto) < 0) { fprintf(stderr, "Error línea %d.\n", linea_actual); return -1; }
+
+    char token[MAX_LINEA];
+    const char *p = ptr;
+    
+    while (*p) {
+        while (*p == ' ' || *p == '\t') p++;
+        if (!*p) break;
+
+        const char *end = p;
+        int en_comilla = 0; char tipo_comilla = 0;
+        while (*end) {
+            if ((*end == '"' || *end == '\'') && !(end > p && *(end-1) == '\\')) {
+                if (!en_comilla) { en_comilla = 1; tipo_comilla = *end; }
+                else if (*end == tipo_comilla) en_comilla = 0;
+            }
+            if (!en_comilla && *end == ',') break;
+            end++;
+        }
+
+        int len = end - p;
+        if (len > 0 && len < MAX_LINEA) {
+            strncpy(token, p, len);
+            token[len] = '\0';
+
+            char n[MAX_NOMBRE]; char vt[MAX_TEXTO_LEN]; double vd = 0; int ha=0, et=0;
+            if (!parsear_declaracion(token, n, vt, &vd, &ha, &et) || !ha) {
+                fprintf(stderr, "Error línea %d: Sintaxis inválida o falta asignación en constante TEXTO.\n", linea_actual);
+                return -1;
+            }
+            if (variable_ya_existe(n)) { 
+                fprintf(stderr, "ADVERTENCIA línea %d: La constante '$%s' YA EXISTE como %s.\n", linea_actual, n, obtener_tipo_variable_existente(n));
+                fprintf(stderr, "Sugerencia: Usá un nombre diferente para evitar colisiones.\n"); 
+            }
+            if (agregar_texto_constante(n, vt) < 0) {
+                fprintf(stderr, "Error línea %d: No se pudo registrar constante TEXTO '$%s'.\n", linea_actual, n);
+                return -1;
+            }
+        }
+
+        p = end;
+        if (*p == ',') p++;
+    }
     return 0;
 }
 
@@ -534,13 +646,46 @@ int procesar_declaracion_constante_entera(const char *linea, int linea_actual) {
     const char *ptr = linea;
     if (comienza_con(ptr, "DECLARAR")) { ptr += 8; while (*ptr == ' ' || *ptr == '\t') ptr++; }
     if (comienza_con(ptr, "CONSTANTE ENTERA")) { ptr += 16; while (*ptr == ' ' || *ptr == '\t') ptr++; }
-    char nombre[MAX_NOMBRE]; char valor_texto[MAX_TEXTO_LEN]; double valor_double = 0;
-    int hay_asignacion = 0, es_texto = 0;
-    if (!parsear_declaracion(ptr, nombre, valor_texto, &valor_double, &hay_asignacion, &es_texto)) { fprintf(stderr, "Error línea %d.\n", linea_actual); return -1; }
-    if (!hay_asignacion) { fprintf(stderr, "Error línea %d: Constante requiere asignación.\n", linea_actual); return -1; }
-    if (variable_ya_existe(nombre)) { fprintf(stderr, "ADVERTENCIA línea %d: La constante '$%s' YA EXISTE como %s.\n", linea_actual, nombre, obtener_tipo_variable_existente(nombre)); fprintf(stderr, "   Sugerencia: Usá un nombre diferente para evitar colisiones\n"); }
-    if (es_texto) { if (agregar_texto_constante(nombre, valor_texto) < 0) { fprintf(stderr, "Error línea %d\n", linea_actual); return -1; } }
-    else { if (agregar_constante(nombre, (int)valor_double) < 0) { fprintf(stderr, "Error línea %d.\n", linea_actual); return -1; } }
+
+    char token[MAX_LINEA];
+    const char *p = ptr;
+    
+    while (*p) {
+        while (*p == ' ' || *p == '\t') p++;
+        if (!*p) break;
+
+        const char *end = p;
+        int en_comilla = 0; char tipo_comilla = 0;
+        while (*end) {
+            if ((*end == '"' || *end == '\'') && !(end > p && *(end-1) == '\\')) {
+                if (!en_comilla) { en_comilla = 1; tipo_comilla = *end; }
+                else if (*end == tipo_comilla) en_comilla = 0;
+            }
+            if (!en_comilla && *end == ',') break;
+            end++;
+        }
+
+        int len = end - p;
+        if (len > 0 && len < MAX_LINEA) {
+            strncpy(token, p, len);
+            token[len] = '\0';
+
+            char n[MAX_NOMBRE]; char vt[MAX_TEXTO_LEN]; double vd = 0; int ha=0, et=0;
+            if (!parsear_declaracion(token, n, vt, &vd, &ha, &et) || !ha) {
+                fprintf(stderr, "Error línea %d: Sintaxis inválida o falta asignación en constante.\n", linea_actual);
+                return -1;
+            }
+            if (variable_ya_existe(n)) { 
+                fprintf(stderr, "ADVERTENCIA línea %d: La constante '$%s' YA EXISTE como %s.\n", linea_actual, n, obtener_tipo_variable_existente(n));
+                fprintf(stderr, "Sugerencia: Usá un nombre diferente para evitar colisiones.\n"); 
+            }
+            if (et) { if (agregar_texto_constante(n, vt) < 0) return -1; }
+            else { if (agregar_constante(n, (int)vd) < 0) return -1; }
+        }
+
+        p = end;
+        if (*p == ',') p++;
+    }
     return 0;
 }
 
@@ -548,12 +693,146 @@ int procesar_declaracion_constante_decimal(const char *linea, int linea_actual) 
     const char *ptr = linea;
     if (comienza_con(ptr, "DECLARAR")) { ptr += 8; while (*ptr == ' ' || *ptr == '\t') ptr++; }
     if (comienza_con(ptr, "CONSTANTE DECIMAL")) { ptr += 17; while (*ptr == ' ' || *ptr == '\t') ptr++; }
-    char nombre[MAX_NOMBRE]; char valor_texto[MAX_TEXTO_LEN]; double valor_double = 0;
-    int hay_asignacion = 0, es_texto = 0;
-    if (!parsear_declaracion(ptr, nombre, valor_texto, &valor_double, &hay_asignacion, &es_texto)) { fprintf(stderr, "Error línea %d.\n", linea_actual); return -1; }
-    if (!hay_asignacion) { fprintf(stderr, "Error línea %d: Constante requiere asignación.\n", linea_actual); return -1; }
-    if (variable_ya_existe(nombre)) { fprintf(stderr, "ADVERTENCIA línea %d: La constante '$%s' YA EXISTE como %s.\n", linea_actual, nombre, obtener_tipo_variable_existente(nombre)); fprintf(stderr, "   Sugerencia: Usá un nombre diferente para evitar colisiones\n"); }
-    if (agregar_constante_decimal(nombre, valor_double) < 0) { fprintf(stderr, "Error línea %d.\n", linea_actual); return -1; }
+
+    char token[MAX_LINEA];
+    const char *p = ptr;
+    
+    while (*p) {
+        while (*p == ' ' || *p == '\t') p++;
+        if (!*p) break;
+
+        const char *end = p;
+        int en_comilla = 0; char tipo_comilla = 0;
+        while (*end) {
+            if ((*end == '"' || *end == '\'') && !(end > p && *(end-1) == '\\')) {
+                if (!en_comilla) { en_comilla = 1; tipo_comilla = *end; }
+                else if (*end == tipo_comilla) en_comilla = 0;
+            }
+            if (!en_comilla && *end == ',') break;
+            end++;
+        }
+
+        int len = end - p;
+        if (len > 0 && len < MAX_LINEA) {
+            strncpy(token, p, len);
+            token[len] = '\0';
+
+            char n[MAX_NOMBRE]; char vt[MAX_TEXTO_LEN]; double vd = 0; int ha=0, et=0;
+            if (!parsear_declaracion(token, n, vt, &vd, &ha, &et) || !ha) {
+                fprintf(stderr, "Error línea %d: Sintaxis inválida o falta asignación en constante DECIMAL.\n", linea_actual);
+                return -1;
+            }
+            if (variable_ya_existe(n)) { 
+                fprintf(stderr, "ADVERTENCIA línea %d: La constante '$%s' YA EXISTE como %s.\n", linea_actual, n, obtener_tipo_variable_existente(n));
+                fprintf(stderr, "Sugerencia: Usá un nombre diferente para evitar colisiones.\n"); 
+            }
+            if (agregar_constante_decimal(n, vd) < 0) {
+                fprintf(stderr, "Error línea %d: No se pudo registrar constante DECIMAL '$%s'.\n", linea_actual, n);
+                return -1;
+            }
+        }
+
+        p = end;
+        if (*p == ',') p++;
+    }
+    return 0;
+}
+
+int procesar_declaracion_constante_caracter_sin_signo(const char *linea, int linea_actual) {
+    const char *ptr = linea;
+    if (comienza_con(ptr, "DECLARAR")) { ptr += 8; while (*ptr == ' ' || *ptr == '\t') ptr++; }
+    if (comienza_con(ptr, "CONSTANTE CARACTER SIN SIGNO")) { ptr += 28; while (*ptr == ' ' || *ptr == '\t') ptr++; }
+
+    char token[MAX_LINEA];
+    const char *p = ptr;
+    
+    while (*p) {
+        while (*p == ' ' || *p == '\t') p++;
+        if (!*p) break;
+
+        const char *end = p;
+        int en_comilla = 0; char tipo_comilla = 0;
+        while (*end) {
+            if ((*end == '"' || *end == '\'') && !(end > p && *(end-1) == '\\')) {
+                if (!en_comilla) { en_comilla = 1; tipo_comilla = *end; }
+                else if (*end == tipo_comilla) en_comilla = 0;
+            }
+            if (!en_comilla && *end == ',') break;
+            end++;
+        }
+
+        int len = end - p;
+        if (len > 0 && len < MAX_LINEA) {
+            strncpy(token, p, len);
+            token[len] = '\0';
+
+            char n[MAX_NOMBRE]; char vt[MAX_TEXTO_LEN]; double vd = 0; int ha=0, et=0;
+            if (!parsear_declaracion(token, n, vt, &vd, &ha, &et) || !ha) {
+                fprintf(stderr, "Error línea %d: Sintaxis inválida o falta asignación en constante CARACTER SIN SIGNO.\n", linea_actual);
+                return -1;
+            }
+            if (variable_ya_existe(n)) { 
+                fprintf(stderr, "ADVERTENCIA línea %d: La constante '$%s' YA EXISTE como %s.\n", linea_actual, n, obtener_tipo_variable_existente(n));
+                fprintf(stderr, "Sugerencia: Usá un nombre diferente para evitar colisiones.\n"); 
+            }
+            if (agregar_constante_caracter_sin_signo(n, vt) < 0) {
+                fprintf(stderr, "Error línea %d: No se pudo registrar constante CARACTER SIN SIGNO '$%s'.\n", linea_actual, n);
+                return -1;
+            }
+        }
+
+        p = end;
+        if (*p == ',') p++;
+    }
+    return 0;
+}
+
+int procesar_declaracion_constante_caracter(const char *linea, int linea_actual) {
+    const char *ptr = linea;
+    if (comienza_con(ptr, "DECLARAR")) { ptr += 8; while (*ptr == ' ' || *ptr == '\t') ptr++; }
+    if (comienza_con(ptr, "CONSTANTE CARACTER")) { ptr += 18; while (*ptr == ' ' || *ptr == '\t') ptr++; }
+
+    char token[MAX_LINEA];
+    const char *p = ptr;
+    
+    while (*p) {
+        while (*p == ' ' || *p == '\t') p++;
+        if (!*p) break;
+
+        const char *end = p;
+        int en_comilla = 0; char tipo_comilla = 0;
+        while (*end) {
+            if ((*end == '"' || *end == '\'') && !(end > p && *(end-1) == '\\')) {
+                if (!en_comilla) { en_comilla = 1; tipo_comilla = *end; }
+                else if (*end == tipo_comilla) en_comilla = 0;
+            }
+            if (!en_comilla && *end == ',') break;
+            end++;
+        }
+
+        int len = end - p;
+        if (len > 0 && len < MAX_LINEA) {
+            strncpy(token, p, len);
+            token[len] = '\0';
+
+            char n[MAX_NOMBRE]; char vt[MAX_TEXTO_LEN]; double vd = 0; int ha=0, et=0;
+            if (!parsear_declaracion(token, n, vt, &vd, &ha, &et) || !ha) {
+                fprintf(stderr, "Error línea %d: Sintaxis inválida o falta asignación en constante CARACTER.\n", linea_actual);
+                return -1;
+            }
+            if (variable_ya_existe(n)) { 
+                fprintf(stderr, "ADVERTENCIA línea %d: La constante '$%s' YA EXISTE como %s.\n", linea_actual, n, obtener_tipo_variable_existente(n));
+                fprintf(stderr, "Sugerencia: Usá un nombre diferente para evitar colisiones.\n"); 
+            }
+            if (agregar_constante_caracter(n, (char)vd) < 0) {
+                fprintf(stderr, "Error línea %d: No se pudo registrar constante CARACTER '$%s'.\n", linea_actual, n);
+                return -1;
+            }
+        }
+
+        p = end;
+        if (*p == ',') p++;
+    }
     return 0;
 }
 

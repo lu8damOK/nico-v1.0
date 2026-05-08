@@ -374,11 +374,11 @@ int agregar_constante_caracter(const char *nombre, char valor) {
     return num_constantes_caracter - 1;
 }
 
-int agregar_constante_caracter_sin_signo(const char *nombre, unsigned char valor) {
+int agregar_constante_caracter_sin_signo(const char *nombre, const char *valor) {
     if (num_constantes_caracter_sin_signo >= MAX_CONSTANTES_CARACTER_SIN_SIGNO) return -1;
     strncpy(constantes_caracter_sin_signo[num_constantes_caracter_sin_signo].nombre, nombre, MAX_NOMBRE - 1);
     constantes_caracter_sin_signo[num_constantes_caracter_sin_signo].nombre[MAX_NOMBRE - 1] = '\0';
-    constantes_caracter_sin_signo[num_constantes_caracter_sin_signo].valor = valor;
+    snprintf(constantes_caracter_sin_signo[num_constantes_caracter_sin_signo].valor, 8, "%s", valor ? valor : "");
     num_constantes_caracter_sin_signo++;
     return num_constantes_caracter_sin_signo - 1;
 }

@@ -1,0 +1,15 @@
+PROGRAMA test_caracter_sin.nico
+BLOQUE PRINCIPAL
+    // Test constante caracter sin signo (ASCII extendido 0-255)
+    CONSTANTE CARACTER SIN SIGNO $c1 = 'Z'
+    CONSTANTE CARACTER SIN SIGNO $c2 = 'ñ'
+    ESCRIBIR("") SALTO
+    ESCRIBIR("Caracter 1: $c1") SALTO
+    ESCRIBIR("Caracter 2: $c2") SALTO
+    
+    // Test que también funcione con DECLARAR explícito
+    DECLARAR CONSTANTE CARACTER SIN SIGNO $c3 = '€'
+    ESCRIBIR("Caracter 3: $c3")
+    ESCRIBIR("\n") SALTO
+FIN PRINCIPAL
+FINAL

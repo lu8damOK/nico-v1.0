@@ -373,8 +373,9 @@ double obtener_valor_token(const char *token, int *exito) {
         idx = buscar_constante_caracter(nombre);
         if (idx >= 0) { *exito = 1; return (double)(unsigned char)constantes_caracter[idx].valor; }
         idx = buscar_constante_caracter_sin_signo(nombre);
-        if (idx >= 0) { *exito = 1; return (double)(unsigned char)constantes_caracter_sin_signo[idx].valor; }
-        
+        //if (idx >= 0) { *exito = 1; return (double)(unsigned char)constantes_caracter_sin_signo[idx].valor; }
+        if (idx >= 0) { *exito = 1; return (double)(unsigned char)constantes_caracter_sin_signo[idx].valor[0]; } 
+
         idx = buscar_texto_constante(nombre);
         if (idx >= 0) { *exito = 1; return (double)strlen(texto_constantes[idx].valor); }
         idx = buscar_texto_var(nombre);

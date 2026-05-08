@@ -49,6 +49,8 @@ int cmd_constante_decimal(const char *linea, CtxBloque *ctx, int linea_actual);
 int cmd_constante_texto(const char *linea, CtxBloque *ctx, int linea_actual);
 int cmd_constante_entera_sin(const char *linea, CtxBloque *ctx, int linea_actual);
 int cmd_constante_decimal_sin(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_constante_caracter(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_constante_caracter_sin(const char *linea, CtxBloque *ctx, int linea_actual);
 int cmd_llamar_a(const char *linea, CtxBloque *ctx, int linea_actual);
 int cmd_subprograma(const char *linea, CtxBloque *ctx, int linea_actual);
 int cmd_fin_subprograma(const char *linea, CtxBloque *ctx, int linea_actual);
@@ -967,6 +969,24 @@ int cmd_constante_decimal_sin(const char *linea, CtxBloque *ctx, int linea_actua
         return -1;
     }
     if (procesar_declaracion_constante_decimal_sin_signo(linea, linea_actual) < 0) return -1;
+    ctx->linea_num++; return 0;
+}
+
+int cmd_constante_caracter(const char *linea, CtxBloque *ctx, int linea_actual) {
+    if (!ctx->declaraciones_permitidas) {
+        fprintf(stderr, "Error línea %d: Declaraciones solo al inicio.\n", linea_actual);
+        return -1;
+    }
+    if (procesar_declaracion_constante_caracter(linea, linea_actual) < 0) return -1;
+    ctx->linea_num++; return 0;
+}
+
+int cmd_constante_caracter_sin(const char *linea, CtxBloque *ctx, int linea_actual) {
+    if (!ctx->declaraciones_permitidas) {
+        fprintf(stderr, "Error línea %d: Declaraciones solo al inicio.\n", linea_actual);
+        return -1;
+    }
+    if (procesar_declaracion_constante_caracter_sin_signo(linea, linea_actual) < 0) return -1;
     ctx->linea_num++; return 0;
 }
 

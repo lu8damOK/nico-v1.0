@@ -924,14 +924,18 @@ void procesar_escribir(const char *texto) {
                             ptr = (char *)cierre + 1;
                             continue;
                         }
-                        char buf[64];
+                        /*char buf[64];
                         if (valor == (double)(long long)valor && fabs(valor) < 9007199254740992.0) {
                             sprintf(buf, "[%lld]", (long long)valor);
                         } else {
                             int p = (dec_actual < dec_count) ? dec_precisions[dec_actual] : 6;
                             dec_actual++;
                             sprintf(buf, "[%.*f]", p, valor);
-                        }
+                        }*/
+                        char buf[64];
+                        int p = (dec_actual < dec_count) ? dec_precisions[dec_actual] : 2;
+                        dec_actual++;
+                        sprintf(buf, "[%.*f]", p, valor);
                         strcat(resultado, buf);
                         ptr = (char *)cierre + 1;
                         continue;
@@ -1243,14 +1247,9 @@ void procesar_escribir(const char *texto) {
                                                 encontrado = 1;
                                             }
                                         } else {
-                                            double val_red = round(val);
-                                            if (fabs(val - val_red) < 1e-9 && fabs(val) < 9007199254740992.0) {
-                                                sprintf(buf_num, "%lld", (long long)val_red);
-                                            } else {
-                                                int p = (dec_actual < dec_count) ? dec_precisions[dec_actual] : 6;
-                                                dec_actual++;
-                                                sprintf(buf_num, "%.*f", p, val);
-                                            }
+                                            int p = (dec_actual < dec_count) ? dec_precisions[dec_actual] : 2;  // ← Default 2 decimales
+                                            dec_actual++;
+                                            sprintf(buf_num, "%.*f", p, val);
                                         }
                                     } break;
                                 case 4: sprintf(buf_num, "%c", (char)scopes_locales[s].variables[v].valor.valor_caracter); break;
@@ -1266,32 +1265,44 @@ void procesar_escribir(const char *texto) {
             if (!encontrado) {
                 if ((idx = buscar_variable_decimal(nombre)) >= 0) { 
                     double val = variables_decimal[idx].valor;
-                    double val_red = round(val);
-                    if (fabs(val - val_red) < 1e-9 && fabs(val) < 9007199254740992.0) {
-                        sprintf(buf_num, "%lld", (long long)val_red);
-                    } else {
-                        int p = (dec_actual < dec_count) ? dec_precisions[dec_actual] : 6;
-                        dec_actual++;
-                        sprintf(buf_num, "%.*f", p, val);
-                    }
+                    int p = (dec_actual < dec_count) ? dec_precisions[dec_actual] : 2;
+                    dec_actual++;
+                    sprintf(buf_num, "%.*f", p, val);
                     encontrado = 1; 
                 }
                 else if ((idx = buscar_variable(nombre)) >= 0) { sprintf(buf_num, "%lld", (long long)variables[idx].valor); encontrado = 1; }
                 else if ((idx = buscar_variable_sin_signo(nombre)) >= 0) { sprintf(buf_num, "%llu", (unsigned long long)variables_sin_signo[idx].valor); encontrado = 1; }
                 else if ((idx = buscar_variable_decimal_sin_signo(nombre)) >= 0) { 
                     double val = variables_decimal_sin_signo[idx].valor;
-                    double val_red = round(val);
-                    if (fabs(val - val_red) < 1e-9 && fabs(val) < 9007199254740992.0) {
-                        sprintf(buf_num, "%lld", (long long)val_red);
-                    } else {
-                        int p = (dec_actual < dec_count) ? dec_precisions[dec_actual] : 6;
-                        dec_actual++;
-                        sprintf(buf_num, "%.*f", p, val);
-                    }
+                    int p = (dec_actual < dec_count) ? dec_precisions[dec_actual] : 2;
+                    dec_actual++;
+                    sprintf(buf_num, "%.*f", p, val);
                     encontrado = 1; 
                 }
                 else if ((idx = buscar_variable_caracter(nombre)) >= 0) { sprintf(buf_num, "%c", (char)variables_caracter[idx].valor); encontrado = 1; }
                 else if ((idx = buscar_variable_caracter_sin_signo(nombre)) >= 0) { sprintf(buf_num, "%c", (unsigned char)variables_caracter_sin_signo[idx].valor); encontrado = 1; }
+            }
+            
+            // BUSCAR EN POOLS DE CONSTANTES (si no se encontró en variables)
+            if (!encontrado) {
+                if ((idx = buscar_constante_decimal(nombre)) >= 0) { 
+                    double val = constantes_decimal[idx].valor;
+                    int p = (dec_actual < dec_count) ? dec_precisions[dec_actual] : 2;
+                    dec_actual++;
+                    sprintf(buf_num, "%.*f", p, val);
+                    encontrado = 1; 
+                }
+                else if ((idx = buscar_constante(nombre)) >= 0) { sprintf(buf_num, "%lld", (long long)constantes[idx].valor); encontrado = 1; }
+                else if ((idx = buscar_constante_sin_signo(nombre)) >= 0) { sprintf(buf_num, "%llu", (unsigned long long)constantes_sin_signo[idx].valor); encontrado = 1; }
+                else if ((idx = buscar_constante_decimal_sin_signo(nombre)) >= 0) { 
+                    double val = constantes_decimal_sin_signo[idx].valor;
+                    int p = (dec_actual < dec_count) ? dec_precisions[dec_actual] : 2;
+                    dec_actual++;
+                    sprintf(buf_num, "%.*f", p, val);
+                    encontrado = 1; 
+                }
+                else if ((idx = buscar_constante_caracter(nombre)) >= 0) { sprintf(buf_num, "%c", (char)constantes_caracter[idx].valor); encontrado = 1; }
+                else if ((idx = buscar_constante_caracter_sin_signo(nombre)) >= 0) { sprintf(buf_num, "%s", constantes_caracter_sin_signo[idx].valor); encontrado = 1; }
             }
 
             if (!encontrado) {

@@ -85,7 +85,7 @@ typedef struct { char nombre[MAX_NOMBRE]; unsigned int valor; } ConstanteSinSign
 typedef struct { char nombre[MAX_NOMBRE]; double valor; } ConstanteDecimal;
 typedef struct { char nombre[MAX_NOMBRE]; double valor; } ConstanteDecimalSinSigno;
 typedef struct { char nombre[MAX_NOMBRE]; char valor; } ConstanteCaracter;
-typedef struct { char nombre[MAX_NOMBRE]; unsigned char valor; } ConstanteCaracterSinSigno;
+typedef struct { char nombre[MAX_NOMBRE]; char valor[8]; } ConstanteCaracterSinSigno;
 typedef struct { char nombre[MAX_NOMBRE]; char valor[MAX_TEXTO_LEN]; } ConstanteTexto;
 
 // Archivos
@@ -401,7 +401,7 @@ int agregar_constante_sin_signo(const char *nombre, unsigned int valor);
 int agregar_constante_decimal(const char *nombre, double valor);
 int agregar_constante_decimal_sin_signo(const char *nombre, double valor);
 int agregar_constante_caracter(const char *nombre, char valor);
-int agregar_constante_caracter_sin_signo(const char *nombre, unsigned char valor);
+int agregar_constante_caracter_sin_signo(const char *nombre, const char *valor);
 int agregar_texto_constante(const char *nombre, const char *valor);
 
 int buscar_constante(const char *nombre);
@@ -455,6 +455,8 @@ int procesar_declaracion_constante_decimal_sin_signo(const char *linea, int line
 int procesar_declaracion_constante_texto(const char *linea, int linea_actual);
 int procesar_declaracion_constante_entera(const char *linea, int linea_actual);
 int procesar_declaracion_constante_decimal(const char *linea, int linea_actual);
+int procesar_declaracion_constante_caracter(const char *linea, int linea_actual);
+int procesar_declaracion_constante_caracter_sin_signo(const char *linea, int linea_actual);
 int procesar_declaracion_variable_entera_sin_signo(const char *linea, int linea_actual);
 int procesar_declaracion_variable_decimal_sin_signo(const char *linea, int linea_actual);
 int procesar_declaracion_variable_caracter_sin_signo(const char *linea, int linea_actual);
@@ -786,7 +788,7 @@ int cmd_asignar(const char *linea, CtxBloque *ctx, int linea_actual) ;
 int cmd_var_entera(const char *linea, CtxBloque *ctx, int linea_actual) ;
 int cmd_var_decimal(const char *linea, CtxBloque *ctx, int linea_actual) ;
 int cmd_var_texto(const char *linea, CtxBloque *ctx, int linea_actual) ;
-int procesar_declaracion_variable_texto_extenso(const char *linea, int linea_actual);  /* En declaraciones.c */
+int procesar_declaracion_variable_texto_extenso(const char *linea, int linea_actual);
 int cmd_var_texto_extenso(const char *linea, CtxBloque *ctx, int linea_actual); 
 int cmd_var_caracter(const char *linea, CtxBloque *ctx, int linea_actual) ;
 int cmd_var_entera_sin(const char *linea, CtxBloque *ctx, int linea_actual) ;
@@ -797,6 +799,8 @@ int cmd_constante_decimal(const char *linea, CtxBloque *ctx, int linea_actual) ;
 int cmd_constante_texto(const char *linea, CtxBloque *ctx, int linea_actual) ;
 int cmd_constante_entera_sin(const char *linea, CtxBloque *ctx, int linea_actual) ;
 int cmd_constante_decimal_sin(const char *linea, CtxBloque *ctx, int linea_actual) ;
+int cmd_constante_caracter(const char *linea, CtxBloque *ctx, int linea_actual);
+int cmd_constante_caracter_sin(const char *linea, CtxBloque *ctx, int linea_actual);
 int cmd_llamar_a(const char *linea, CtxBloque *ctx, int linea_actual) ;
 int cmd_subprograma(const char *linea, CtxBloque *ctx, int linea_actual) ;
 int cmd_fin_subprograma(const char *linea, CtxBloque *ctx, int linea_actual) ;
